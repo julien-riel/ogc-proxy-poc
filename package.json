@@ -1,0 +1,14 @@
+{
+  "name": "ogc-proxy-poc",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "dev:mock": "npm run dev -w packages/mock-api",
+    "dev:proxy": "npm run dev -w packages/proxy",
+    "dev": "npm run dev:mock & npm run dev:proxy",
+    "test": "npm run test:unit && npm run test:conformance",
+    "test:unit": "npm test -w packages/proxy",
+    "test:conformance": "npm test -w packages/conformance-tests",
+    "build": "npm run build --workspaces"
+  }
+}
