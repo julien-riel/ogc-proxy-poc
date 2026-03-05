@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { getCollection } from '../engine/registry.js';
-import { fetchUpstreamItems, fetchUpstreamItem } from '../engine/adapter.js';
+import { fetchUpstreamItems, fetchUpstreamItem, UpstreamError } from '../engine/adapter.js';
 import { buildFeatureCollection, buildFeature } from '../engine/geojson-builder.js';
 
 function getBaseUrl(req: Request): string {
@@ -97,6 +97,9 @@ export async function getItem(req: Request, res: Response) {
     res.set('Content-Type', 'application/geo+json');
     res.json(response);
   } catch (err) {
+    if (err instanceof UpstreamError && err.statusCode === 404) {
+      return res.status(404).json({ code: 'NotFound', description: `Feature '${featureId}' not found` });
+    }
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(502).json({ code: 'UpstreamError', description: message });
   }

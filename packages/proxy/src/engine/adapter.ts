@@ -12,10 +12,16 @@ export interface UpstreamPage {
   total?: number;
 }
 
+export class UpstreamError extends Error {
+  constructor(public readonly statusCode: number) {
+    super(`Upstream error: ${statusCode}`);
+  }
+}
+
 async function fetchJson(url: string): Promise<Record<string, unknown>> {
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Upstream error: ${response.status}`);
+    throw new UpstreamError(response.status);
   }
   return response.json() as Promise<Record<string, unknown>>;
 }
