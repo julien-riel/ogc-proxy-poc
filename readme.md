@@ -7,7 +7,11 @@ Mars 2026 — Document confidentiel, usage interne
 
 ## 1. Vision Produit
 
-Créer une passerelle standardisée permettant d'exposer des APIs JSON internes municipales hétérogènes sous forme d'un service OGC API – Features, compatible avec QGIS, outils SIG, outils BI et intégrations futures OGC (Tiles, CQL2).
+Offrir une interface GIS commune et standardisée aux APIs « maison » de l'organisation. Le proxy expose ces APIs hétérogènes sous forme de services OGC API – Features et WFS, permettant leur consommation directe par :
+
+- **QGIS** (via le plugin OAuth2) pour les analystes SIG
+- **MapStore** (via WFS) pour la cartographie web
+- **Applications internes** (Angular, React, etc.) via OGC API – Features (REST/JSON)
 
 Le proxy devient une brique d'urbanisation géospatiale municipale : un point d'entrée unique, standardisé et sécurisé pour toutes les données géographiques internes.
 
@@ -34,14 +38,16 @@ Ces APIs nécessitent une couche de traduction pour devenir compatibles OGC.
 
 ### 3.1 Objectif principal
 
-Permettre aux analystes SIG d'utiliser les APIs municipales comme des couches standard OGC dans QGIS.
+Offrir une interface GIS commune aux APIs « maison » de l'organisation, permettant leur utilisation transparente dans QGIS, MapStore et les applications web internes (Angular, React, etc.).
 
 ### 3.2 Objectifs secondaires
 
-- Centraliser la normalisation géospatiale des API
+- Centraliser la normalisation géospatiale des API internes
 - Créer un moteur de mapping réutilisable
-- Standardiser la sécurité via JWT Entra ID
-- Réduire la dette technique liée aux intégrations SIG
+- Standardiser la sécurité via JWT Entra ID (plugin OAuth2 QGIS)
+- Faciliter l'intégration des données géospatiales dans les applications web maison
+- Réduire la dette technique liée aux intégrations SIG ad hoc
+- Assurer la compatibilité MapStore via WFS
 - Préparer la transition vers OGC API Tiles et CQL2
 
 ---
@@ -51,6 +57,7 @@ Permettre aux analystes SIG d'utiliser les APIs municipales comme des couches st
 ### 4.1 Inclus
 
 - OGC API – Features Core (Part 1)
+- WFS (GetCapabilities, DescribeFeatureType, GetFeature) pour compatibilité MapStore
 - JSON → GeoJSON transformation
 - Registry déclaratif des collections (YAML)
 - Adapter pattern par famille d'API
@@ -58,12 +65,12 @@ Permettre aux analystes SIG d'utiliser les APIs municipales comme des couches st
 - Filtres attributaires simples + bbox
 - Endpoint `/queryables` par collection (Part 3 — dès V3)
 - Rate limiting par upstream dans le proxy
-- Authentification JWT Entra ID
-- Compatible QGIS (validé dès V1)
+- Authentification JWT Entra ID (compatible plugin OAuth2 QGIS)
+- Compatible QGIS, MapStore et applications web (Angular, React, etc.)
 
 ### 4.2 Hors scope initial
 
-- WFS 2.0 / WFS-T (transactions)
+- WFS-T (transactions / écriture)
 - Reprojection multi-CRS
 - CQL2 complet
 - Jointures entre collections
@@ -76,10 +83,11 @@ Permettre aux analystes SIG d'utiliser les APIs municipales comme des couches st
 
 | Persona | Besoin principal |
 |---|---|
-| Analyste SIG | Charger et filtrer des couches dans QGIS sans configuration custom |
-| Architecte SI | Standardiser les APIs géospatiales, réduire les intégrations ad hoc |
-| Développeur | Ajouter une nouvelle collection via config YAML sans modifier le code ou presque pas (ex: fonction de mapping) |
-| Direction TI | Réduire la dépendance à GeoServer, rationaliser l'infra |
+| Analyste SIG | Charger et filtrer des couches dans QGIS (via plugin OAuth2) sans configuration custom |
+| Développeur web | Consommer les données géospatiales dans des applications Angular, React, etc. via OGC API – Features (REST/JSON) |
+| Architecte SI | Standardiser les APIs géospatiales internes, réduire les intégrations ad hoc |
+| Développeur backend | Ajouter une nouvelle collection via config YAML sans modifier le code ou presque pas (ex: fonction de mapping) |
+| Équipe MapStore | Utiliser les couches via WFS dans MapStore sans développement custom |
 
 ---
 
@@ -90,7 +98,9 @@ Permettre aux analystes SIG d'utiliser les APIs municipales comme des couches st
 Le proxy intercepte les requêtes OGC, les traduit en appels REST upstream via un système d'adapters, et retourne du GeoJSON standard :
 
 ```
-QGIS / Client OGC  →  /ogc/*  →  Mapping Engine  →  Adapter  →  API JSON Municipale
+QGIS (OAuth2)      ─┐
+MapStore (WFS)      ─┤→  /ogc/*  →  Mapping Engine  →  Adapter  →  API JSON Municipale
+App web (Angular…)  ─┘   /wfs/*
 ```
 
 ### 6.2 Préfixe de route
@@ -185,9 +195,21 @@ Les collections sont configurables via YAML : URL upstream, méthode HTTP, heade
 
 Chaque famille d'API a un adapter dédié qui construit la requête REST, parse la réponse et transforme en Feature(s). Le contrat d'adapter est stable et extensible.
 
-### RF-10 — Authentification
+### RF-10 — WFS (compatibilité MapStore)
 
-- Validation JWT locale
+Le proxy expose un endpoint WFS en lecture seule pour assurer la compatibilité avec MapStore :
+
+| Opération | Description |
+|---|---|
+| `GetCapabilities` | Liste des couches disponibles et capacités du service |
+| `DescribeFeatureType` | Schéma des attributs par couche |
+| `GetFeature` | Récupération des features (GML/GeoJSON) avec filtres et pagination |
+
+Le WFS réutilise le même registry YAML et les mêmes adapters que l'OGC API – Features. La couche WFS est un « façade » au-dessus du même moteur de mapping.
+
+### RF-11 — Authentification
+
+- Validation JWT locale (compatible plugin OAuth2 QGIS)
 - Vérification signature via JWKS
 - Vérification audience
 - Vérification scopes
@@ -260,9 +282,9 @@ Chaque famille d'API a un adapter dédié qui construit la requête REST, parse 
 
 **V1 — Hello QGIS :** QGIS charge 1 collection et affiche les features sur la carte. Pagination fonctionnelle avec links next/prev.
 
-**V3 — Filtres opérationnels :** Filtres attributaires fonctionnels via query string. bbox fonctionnel. `/queryables` expose les filtres disponibles.
+**V3 — Filtres + WFS :** Filtres attributaires fonctionnels via query string. bbox fonctionnel. `/queryables` expose les filtres disponibles. WFS opérationnel et validé avec MapStore.
 
-**V5 — Production :** Auth Entra fonctionnelle et validée. Multi-collections (5+) en production. Stable sous charge. Utilisé par les analystes en conditions réelles.
+**V5 — Production :** Auth Entra fonctionnelle et validée (plugin OAuth2 QGIS). Multi-collections (5+) en production. Stable sous charge. Utilisé par les analystes SIG, MapStore et les applications web internes.
 
 ---
 
@@ -272,8 +294,8 @@ Chaque famille d'API a un adapter dédié qui construit la requête REST, parse 
 |---|---|---|
 | V1 | Hello QGIS | 1 collection, /collections, /items, pagination, GeoJSON minimal |
 | V2 | Framework multi-collections | Registry YAML, 3 collections, adapters par API, /collections/{id} + extent |
-| V3 | Requêtes utiles | Filtres attributaires, bbox, /queryables, tri basique (optionnel) |
-| V4 | Auth Entra | Validation JWT, JWKS, scopes par collection, mode dev, logs structurés |
+| V3 | Requêtes utiles + WFS | Filtres attributaires, bbox, /queryables, façade WFS (GetCapabilities, DescribeFeatureType, GetFeature) pour MapStore |
+| V4 | Auth Entra | Validation JWT, JWKS, scopes par collection, plugin OAuth2 QGIS, mode dev, logs structurés |
 | V5 | Production ready | OpenAPI /api, gestion erreurs OGC, rate limiting upstream, cache léger (ETag) |
 | V6 | Enterprise + Tiles | OGC API Tiles, CQL2 partiel, Open Data |
 
@@ -283,10 +305,10 @@ Chaque famille d'API a un adapter dédié qui construit la requête REST, parse 
 
 Ce proxy devient :
 
-- Une couche d'abstraction entre les APIs internes et les clients SIG
-- Un standard interne de diffusion géospatiale
-- Un point d'entrée unique pour toutes les données géographiques
-- Une alternative légère et maintenable à GeoServer
+- Une **interface GIS commune** aux APIs « maison » de l'organisation
+- Un standard interne de diffusion géospatiale (OGC API + WFS)
+- Un point d'entrée unique pour toutes les données géographiques internes
+- Un facilitateur d'intégration pour QGIS, MapStore et les applications web maison
 - Une base pour l'Open Data futur
 
 ---
@@ -295,7 +317,7 @@ Ce proxy devient :
 
 | Décision | Justification |
 |---|---|
-| OGC API – Features (pas WFS) | Standard moderne, JSON-first, compatible QGIS 3.28+ |
+| OGC API – Features + WFS | OGC API pour QGIS et apps web ; WFS pour compatibilité MapStore |
 | Registry YAML + Adapter TS | 80% config / 20% code, extensible sans modifier le cœur |
 | Pagination pass-through | APIs upstream supportent déjà offset/limit |
 | CRS unique | Simplification massive, pas de reprojection nécessaire |
@@ -312,8 +334,10 @@ Ce proxy devient :
 |---|---|
 | Nombre de collections exposées | 5+ |
 | Temps moyen de réponse (p95) | < 1.5s |
-| Adoption par équipes SIG | 3+ équipes utilisatrices |
-| Réduction des intégrations custom | 50% des flux SIG via proxy |
+| Adoption par équipes SIG | 3+ équipes utilisatrices (QGIS) |
+| Adoption par applications web | 2+ applications Angular/React consommant l'API |
+| Compatibilité MapStore | WFS validé et fonctionnel |
+| Réduction des intégrations custom | 50% des flux géospatiaux via proxy |
 | Temps d'ajout d'une collection | < 1 heure (YAML uniquement) |
 
 ---
@@ -329,6 +353,7 @@ Les recommandations suivantes ont été intégrées dans ce PRD suite à la revu
 | R3 | Ajouter `rateLimit` par collection upstream dans le registry | Protection APIs internes | V2 |
 | R4 | Utiliser le préfixe `/ogc` et valider avec QGIS en V1 | Cohabitation propre | V1 |
 | R5 | Documenter dans le registry quelles APIs fournissent le count | Observabilité, débogage | V1 |
+| R6 | Façade WFS réutilisant le même moteur que OGC API (pas de duplication) | Compatibilité MapStore, maintenabilité | V3 |
 
 ---
 
