@@ -19,10 +19,10 @@ interface WfsGetFeatureParams {
 
 export function parseGetFeatureGet(query: Record<string, string>): WfsGetFeatureParams {
   return {
-    typeName: query.typeName || query.typeNames || '',
-    maxFeatures: parseInt(query.maxFeatures || query.count || '10'),
-    startIndex: parseInt(query.startIndex || '0'),
-    outputFormat: query.outputFormat || 'application/json',
+    typeName: query.typename || query.typenames || '',
+    maxFeatures: parseInt(query.maxfeatures || query.count || '10'),
+    startIndex: parseInt(query.startindex || '0'),
+    outputFormat: query.outputformat || 'application/json',
   };
 }
 
