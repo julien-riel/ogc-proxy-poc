@@ -87,15 +87,15 @@ ogc-proxy-poc/
 
 ## Mock API (`packages/mock-api`)
 
-3 endpoints REST simulant des APIs municipales avec des structures volontairement différentes :
+3 endpoints REST simulant des APIs municipales avec des structures et des mécanismes de pagination volontairement différents :
 
-| Endpoint | Géométrie | Structure réponse |
-|---|---|---|
-| `GET /api/bornes-fontaines` | Points | `{ data: [{ id, x, y, etat, ... }], total: N }` |
-| `GET /api/pistes-cyclables` | Lines | `{ results: [{ id, geometry: { coords: [...] }, nom, ... }], count: N }` |
-| `GET /api/arrondissements` | Polygons | `{ items: [{ code, nom, wkt: "POLYGON(...)", ... }] }` — pas de total |
+| Endpoint | Géométrie | Pagination | Structure réponse |
+|---|---|---|---|
+| `GET /api/bornes-fontaines` | Points | **offset/limit** | `{ data: [...], total: N }` |
+| `GET /api/pistes-cyclables` | Lines | **page/pageSize** | `{ results: [...], count: N, page: 1, totalPages: 3 }` |
+| `GET /api/arrondissements` | Polygons | **cursor** | `{ items: [...], nextCursor: "RPP" }` — pas de total |
 
-Chaque endpoint supporte `offset` et `limit`. Les structures hétérogènes démontrent la valeur du pattern adapter.
+Les structures hétérogènes (format de réponse ET pagination) démontrent la valeur du proxy comme couche d'abstraction : les clients OGC/WFS utilisent toujours `offset/limit` standard, et l'adapter traduit vers le mécanisme upstream approprié.
 
 ---
 
@@ -112,6 +112,10 @@ collections:
     upstream:
       url: "http://mock-api:3001/api/bornes-fontaines"
       method: GET
+      pagination:
+        type: "offset-limit"
+        offsetParam: "offset"
+        limitParam: "limit"
       responseMapping:
         items: "data"
         total: "total"
@@ -127,6 +131,10 @@ collections:
     upstream:
       url: "http://mock-api:3001/api/pistes-cyclables"
       method: GET
+      pagination:
+        type: "page-pageSize"
+        pageParam: "page"
+        pageSizeParam: "pageSize"
       responseMapping:
         items: "results"
         total: "count"
@@ -141,6 +149,11 @@ collections:
     upstream:
       url: "http://mock-api:3001/api/arrondissements"
       method: GET
+      pagination:
+        type: "cursor"
+        cursorParam: "cursor"
+        limitParam: "limit"
+        nextCursorField: "nextCursor"
       responseMapping:
         items: "items"
         total: null
@@ -155,7 +168,10 @@ collections:
 
 Le YAML couvre les 3 cas du POC sans adapter custom. L'adapter :
 
-1. Construit la requête upstream (URL + query params offset/limit/bbox)
+1. **Traduit la pagination OGC (offset/limit) vers le mécanisme upstream :**
+   - **offset/limit** : pass-through direct
+   - **page/pageSize** : `page = Math.floor(offset / limit) + 1`, `pageSize = limit`
+   - **cursor** : itère les pages cursor depuis le début jusqu'à atteindre l'offset demandé (acceptable pour les petits datasets du POC)
 2. Parse la réponse selon `responseMapping` (chemin vers items et total)
 3. Construit les Features GeoJSON via `geojson-builder` (Point xy, LineString coords, Polygon WKT)
 

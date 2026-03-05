@@ -25,7 +25,7 @@ La ville possède plusieurs APIs REST internes dont les structures sont non unif
 |---|---|
 | Format | JSON custom (pas GeoJSON) |
 | Structure | Non uniforme entre APIs |
-| Pagination | offset / limit |
+| Pagination | Hétérogène (offset/limit, page/pageSize, cursor) |
 | Filtres | Supportés côté serveur |
 | CRS | Unique et stable |
 | Authentification | JWT via Microsoft Entra ID |
@@ -61,7 +61,7 @@ Offrir une interface GIS commune aux APIs « maison » de l'organisation, permet
 - JSON → GeoJSON transformation
 - Registry déclaratif des collections (YAML)
 - Adapter pattern par famille d'API
-- Pagination offset/limit avec pass-through
+- Normalisation de pagination hétérogène (offset/limit, page/pageSize, cursor) vers OGC standard
 - Filtres attributaires simples + bbox
 - Endpoint `/queryables` par collection (Part 3 — dès V3)
 - Rate limiting par upstream dans le proxy
@@ -173,7 +173,7 @@ Expose le schéma des filtres disponibles par collection, conformément à OGC A
 | Paramètre | Description | Mapping |
 |---|---|---|
 | `limit` | Nombre max d'items | Pass-through vers upstream |
-| `offset` | Décalage pagination | Pass-through vers upstream |
+| `offset` | Décalage pagination | Traduit vers offset/limit, page/pageSize ou cursor selon l'upstream |
 | `bbox` | Filtre spatial | Selon config (bbox ou xmin,ymin,xmax,ymax) |
 | attributs | Query string simple | Mapping OGC param → REST param via config |
 
@@ -250,7 +250,7 @@ Le WFS réutilise le même registry YAML et les mêmes adapters que l'OGC API �
 | Élément | Décision |
 |---|---|
 | CRS | Unique — pas de reprojection V1–V3 |
-| Pagination | Pass-through offset/limit |
+| Pagination | Normalisation multi-stratégie → OGC offset/limit |
 | Filtres | Mapping simple OGC → REST via config |
 | Structure API | Hétérogène — adapter requis |
 | Préfixe route | `/ogc` pour cohabitation avec autres services |
@@ -319,7 +319,7 @@ Ce proxy devient :
 |---|---|
 | OGC API – Features + WFS | OGC API pour QGIS et apps web ; WFS pour compatibilité MapStore |
 | Registry YAML + Adapter TS | 80% config / 20% code, extensible sans modifier le cœur |
-| Pagination pass-through | APIs upstream supportent déjà offset/limit |
+| Normalisation pagination | L'adapter traduit OGC offset/limit vers le mécanisme natif de chaque API upstream (offset/limit, page/pageSize, cursor) |
 | CRS unique | Simplification massive, pas de reprojection nécessaire |
 | Auth JWT locale | Pas de dépendance sur un gateway externe en V1-V3 |
 | Préfixe /ogc | Cohabitation propre avec health checks, admin, métriques |

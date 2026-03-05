@@ -389,9 +389,11 @@ export const arrondissements = [
 
 **Step 4: Create routes for each API**
 
+Each endpoint uses a **different pagination mechanism** to demonstrate the adapter's normalization power.
+
 File: `packages/mock-api/src/routes/bornes.ts`
 
-Response structure: `{ data: [...], total: N }` for list, `{ data: {...} }` for single.
+**Pagination: offset/limit.** Response: `{ data: [...], total: N }`.
 
 ```typescript
 import { Router } from 'express';
@@ -417,7 +419,7 @@ export default router;
 
 File: `packages/mock-api/src/routes/pistes.ts`
 
-Response structure: `{ results: [...], count: N }` for list, `{ result: {...} }` for single.
+**Pagination: page/pageSize.** Response: `{ results: [...], count: N, page: P, totalPages: T }`.
 
 ```typescript
 import { Router } from 'express';
@@ -426,10 +428,16 @@ import { pistesCyclables } from '../data/pistes-cyclables.js';
 const router = Router();
 
 router.get('/', (req, res) => {
-  const offset = parseInt(req.query.offset as string) || 0;
-  const limit = parseInt(req.query.limit as string) || 10;
-  const page = pistesCyclables.slice(offset, offset + limit);
-  res.json({ results: page, count: pistesCyclables.length });
+  const page = parseInt(req.query.page as string) || 1;
+  const pageSize = parseInt(req.query.pageSize as string) || 10;
+  const start = (page - 1) * pageSize;
+  const items = pistesCyclables.slice(start, start + pageSize);
+  res.json({
+    results: items,
+    count: pistesCyclables.length,
+    page,
+    totalPages: Math.ceil(pistesCyclables.length / pageSize),
+  });
 });
 
 router.get('/:id', (req, res) => {
@@ -443,7 +451,7 @@ export default router;
 
 File: `packages/mock-api/src/routes/arrondissements.ts`
 
-Response structure: `{ items: [...] }` for list (no total!), `{ item: {...} }` for single.
+**Pagination: cursor-based.** Response: `{ items: [...], nextCursor: "CODE" | null }`. The cursor is the `code` of the last item. No total count available.
 
 ```typescript
 import { Router } from 'express';
@@ -452,10 +460,20 @@ import { arrondissements } from '../data/arrondissements.js';
 const router = Router();
 
 router.get('/', (req, res) => {
-  const offset = parseInt(req.query.offset as string) || 0;
+  const cursor = req.query.cursor as string | undefined;
   const limit = parseInt(req.query.limit as string) || 10;
-  const page = arrondissements.slice(offset, offset + limit);
-  res.json({ items: page });
+
+  let startIndex = 0;
+  if (cursor) {
+    const cursorIndex = arrondissements.findIndex(a => a.code === cursor);
+    startIndex = cursorIndex >= 0 ? cursorIndex + 1 : 0;
+  }
+
+  const items = arrondissements.slice(startIndex, startIndex + limit);
+  const hasMore = startIndex + limit < arrondissements.length;
+  const nextCursor = hasMore ? items[items.length - 1].code : null;
+
+  res.json({ items, nextCursor });
 });
 
 router.get('/:code', (req, res) => {
@@ -535,6 +553,10 @@ collections:
     upstream:
       baseUrl: "${UPSTREAM_HOST}/api/bornes-fontaines"
       method: GET
+      pagination:
+        type: "offset-limit"
+        offsetParam: "offset"
+        limitParam: "limit"
       responseMapping:
         items: "data"
         total: "total"
@@ -556,6 +578,10 @@ collections:
     upstream:
       baseUrl: "${UPSTREAM_HOST}/api/pistes-cyclables"
       method: GET
+      pagination:
+        type: "page-pageSize"
+        pageParam: "page"
+        pageSizeParam: "pageSize"
       responseMapping:
         items: "results"
         total: "count"
@@ -578,6 +604,11 @@ collections:
     upstream:
       baseUrl: "${UPSTREAM_HOST}/api/arrondissements"
       method: GET
+      pagination:
+        type: "cursor"
+        cursorParam: "cursor"
+        limitParam: "limit"
+        nextCursorField: "nextCursor"
       responseMapping:
         items: "items"
         total: null
@@ -603,12 +634,34 @@ export interface PropertyConfig {
   type: string;
 }
 
+export interface OffsetLimitPagination {
+  type: 'offset-limit';
+  offsetParam: string;
+  limitParam: string;
+}
+
+export interface PagePagination {
+  type: 'page-pageSize';
+  pageParam: string;
+  pageSizeParam: string;
+}
+
+export interface CursorPagination {
+  type: 'cursor';
+  cursorParam: string;
+  limitParam: string;
+  nextCursorField: string;
+}
+
+export type PaginationConfig = OffsetLimitPagination | PagePagination | CursorPagination;
+
 export interface CollectionConfig {
   title: string;
   description?: string;
   upstream: {
     baseUrl: string;
     method: string;
+    pagination: PaginationConfig;
     responseMapping: {
       items: string;
       total: string | null;
@@ -1069,18 +1122,19 @@ git commit -m "feat: add GeoJSON builder with Point, LineString, Polygon support
 
 File: `packages/proxy/src/engine/adapter.test.ts`
 
-Tests use `vi.fn()` to mock `fetch`. The adapter builds the upstream URL, calls fetch, extracts items/total via responseMapping, and returns the raw items + total.
+Tests use `vi.fn()` to mock `fetch`. The adapter translates OGC offset/limit to the upstream's native pagination format, calls fetch, extracts items/total via responseMapping, and returns the raw items + total. Tests cover all 3 pagination strategies.
 
 ```typescript
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fetchUpstreamItems, fetchUpstreamItem } from './adapter.js';
 import type { CollectionConfig } from './types.js';
 
-const mockConfig: CollectionConfig = {
-  title: 'Test',
+const offsetLimitConfig: CollectionConfig = {
+  title: 'Test Offset/Limit',
   upstream: {
     baseUrl: 'http://mock:3001/api/test',
     method: 'GET',
+    pagination: { type: 'offset-limit', offsetParam: 'offset', limitParam: 'limit' },
     responseMapping: { items: 'data', total: 'total', item: 'data' },
   },
   geometry: { type: 'Point', xField: 'x', yField: 'y' },
@@ -1088,12 +1142,30 @@ const mockConfig: CollectionConfig = {
   properties: [{ name: 'name', type: 'string' }],
 };
 
-const mockConfigNoTotal: CollectionConfig = {
-  ...mockConfig,
+const pageConfig: CollectionConfig = {
+  title: 'Test Page/PageSize',
   upstream: {
-    ...mockConfig.upstream,
+    baseUrl: 'http://mock:3001/api/pistes',
+    method: 'GET',
+    pagination: { type: 'page-pageSize', pageParam: 'page', pageSizeParam: 'pageSize' },
+    responseMapping: { items: 'results', total: 'count', item: 'result' },
+  },
+  geometry: { type: 'LineString', coordsField: 'geometry.coords' },
+  idField: 'id',
+  properties: [{ name: 'nom', type: 'string' }],
+};
+
+const cursorConfig: CollectionConfig = {
+  title: 'Test Cursor',
+  upstream: {
+    baseUrl: 'http://mock:3001/api/arr',
+    method: 'GET',
+    pagination: { type: 'cursor', cursorParam: 'cursor', limitParam: 'limit', nextCursorField: 'nextCursor' },
     responseMapping: { items: 'items', total: null, item: 'item' },
   },
+  geometry: { type: 'Polygon', wktField: 'wkt' },
+  idField: 'code',
+  properties: [{ name: 'nom', type: 'string' }],
 };
 
 describe('Adapter', () => {
@@ -1101,53 +1173,107 @@ describe('Adapter', () => {
     vi.restoreAllMocks();
   });
 
-  it('fetches items with offset and limit', async () => {
-    const mockResponse = { data: [{ id: 1, x: -73.5, y: 45.5, name: 'A' }], total: 10 };
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockResponse),
-    }));
+  describe('offset/limit pagination', () => {
+    it('passes offset and limit to upstream', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: [{ id: 1 }], total: 10 }),
+      }));
 
-    const result = await fetchUpstreamItems(mockConfig, { offset: 0, limit: 10 });
+      const result = await fetchUpstreamItems(offsetLimitConfig, { offset: 5, limit: 3 });
 
-    expect(fetch).toHaveBeenCalledWith('http://mock:3001/api/test?offset=0&limit=10');
-    expect(result.items).toEqual([{ id: 1, x: -73.5, y: 45.5, name: 'A' }]);
-    expect(result.total).toBe(10);
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('offset=5'));
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('limit=3'));
+      expect(result.items).toEqual([{ id: 1 }]);
+      expect(result.total).toBe(10);
+    });
   });
 
-  it('handles null total mapping', async () => {
-    const mockResponse = { items: [{ id: 1 }] };
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockResponse),
-    }));
+  describe('page/pageSize pagination', () => {
+    it('converts offset/limit to page/pageSize', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ results: [{ id: 1 }], count: 8 }),
+      }));
 
-    const result = await fetchUpstreamItems(mockConfigNoTotal, { offset: 0, limit: 10 });
-    expect(result.total).toBeUndefined();
+      // offset=6, limit=3 → page=3, pageSize=3
+      const result = await fetchUpstreamItems(pageConfig, { offset: 6, limit: 3 });
+
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('page=3'));
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('pageSize=3'));
+      expect(result.items).toEqual([{ id: 1 }]);
+      expect(result.total).toBe(8);
+    });
+
+    it('page 1 when offset is 0', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ results: [{ id: 1 }], count: 8 }),
+      }));
+
+      await fetchUpstreamItems(pageConfig, { offset: 0, limit: 5 });
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('page=1'));
+    });
   });
 
-  it('fetches a single item by id', async () => {
-    const mockResponse = { data: { id: 1, x: -73.5, y: 45.5, name: 'A' } };
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockResponse),
-    }));
+  describe('cursor pagination', () => {
+    it('fetches first page when offset is 0', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ items: [{ code: 'A' }, { code: 'B' }], nextCursor: 'B' }),
+      }));
 
-    const result = await fetchUpstreamItem(mockConfig, '1');
+      const result = await fetchUpstreamItems(cursorConfig, { offset: 0, limit: 2 });
 
-    expect(fetch).toHaveBeenCalledWith('http://mock:3001/api/test/1');
-    expect(result).toEqual({ id: 1, x: -73.5, y: 45.5, name: 'A' });
+      // No cursor param on first request
+      const calledUrl = (fetch as any).mock.calls[0][0] as string;
+      expect(calledUrl).not.toContain('cursor=');
+      expect(result.items).toEqual([{ code: 'A' }, { code: 'B' }]);
+      expect(result.total).toBeUndefined();
+    });
+
+    it('iterates pages to reach offset', async () => {
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ items: [{ code: 'A' }, { code: 'B' }], nextCursor: 'B' }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ items: [{ code: 'C' }, { code: 'D' }], nextCursor: 'D' }),
+        });
+      vi.stubGlobal('fetch', fetchMock);
+
+      // offset=2, limit=2 → skip first 2 items, return next 2
+      const result = await fetchUpstreamItems(cursorConfig, { offset: 2, limit: 2 });
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(result.items).toEqual([{ code: 'C' }, { code: 'D' }]);
+    });
   });
 
-  it('throws on upstream error', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
-      statusText: 'Internal Server Error',
-    }));
+  describe('single item', () => {
+    it('fetches a single item by id', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: { id: 1, name: 'A' } }),
+      }));
 
-    await expect(fetchUpstreamItems(mockConfig, { offset: 0, limit: 10 }))
-      .rejects.toThrow('Upstream error: 500');
+      const result = await fetchUpstreamItem(offsetLimitConfig, '1');
+      expect(fetch).toHaveBeenCalledWith('http://mock:3001/api/test/1');
+      expect(result).toEqual({ id: 1, name: 'A' });
+    });
+  });
+
+  describe('error handling', () => {
+    it('throws on upstream error', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: false, status: 500, statusText: 'Internal Server Error',
+      }));
+
+      await expect(fetchUpstreamItems(offsetLimitConfig, { offset: 0, limit: 10 }))
+        .rejects.toThrow('Upstream error: 500');
+    });
   });
 });
 ```
@@ -1161,8 +1287,10 @@ Expected: FAIL — module `./adapter.js` not found
 
 File: `packages/proxy/src/engine/adapter.ts`
 
+The adapter translates OGC-standard offset/limit pagination into the upstream API's native pagination mechanism (offset/limit, page/pageSize, or cursor).
+
 ```typescript
-import type { CollectionConfig } from './types.js';
+import type { CollectionConfig, PaginationConfig } from './types.js';
 import { getByPath } from './geojson-builder.js';
 
 interface FetchParams {
@@ -1171,33 +1299,96 @@ interface FetchParams {
   bbox?: [number, number, number, number];
 }
 
-interface UpstreamPage {
+export interface UpstreamPage {
   items: Record<string, unknown>[];
   total?: number;
+}
+
+async function fetchJson(url: string): Promise<Record<string, unknown>> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Upstream error: ${response.status}`);
+  }
+  return response.json() as Promise<Record<string, unknown>>;
+}
+
+function extractItems(body: Record<string, unknown>, config: CollectionConfig): Record<string, unknown>[] {
+  return (getByPath(body, config.upstream.responseMapping.items) as Record<string, unknown>[]) || [];
+}
+
+function extractTotal(body: Record<string, unknown>, config: CollectionConfig): number | undefined {
+  const { total } = config.upstream.responseMapping;
+  return total ? (getByPath(body, total) as number | undefined) : undefined;
+}
+
+async function fetchOffsetLimit(config: CollectionConfig, params: FetchParams): Promise<UpstreamPage> {
+  const pagination = config.upstream.pagination as { offsetParam: string; limitParam: string };
+  const url = new URL(config.upstream.baseUrl);
+  url.searchParams.set(pagination.offsetParam, String(params.offset));
+  url.searchParams.set(pagination.limitParam, String(params.limit));
+
+  const body = await fetchJson(url.toString());
+  return { items: extractItems(body, config), total: extractTotal(body, config) };
+}
+
+async function fetchPageBased(config: CollectionConfig, params: FetchParams): Promise<UpstreamPage> {
+  const pagination = config.upstream.pagination as { pageParam: string; pageSizeParam: string };
+  const page = Math.floor(params.offset / params.limit) + 1;
+
+  const url = new URL(config.upstream.baseUrl);
+  url.searchParams.set(pagination.pageParam, String(page));
+  url.searchParams.set(pagination.pageSizeParam, String(params.limit));
+
+  const body = await fetchJson(url.toString());
+  return { items: extractItems(body, config), total: extractTotal(body, config) };
+}
+
+async function fetchCursorBased(config: CollectionConfig, params: FetchParams): Promise<UpstreamPage> {
+  const pagination = config.upstream.pagination as {
+    cursorParam: string;
+    limitParam: string;
+    nextCursorField: string;
+  };
+
+  let cursor: string | undefined;
+  let collected: Record<string, unknown>[] = [];
+
+  while (collected.length < params.offset + params.limit) {
+    const url = new URL(config.upstream.baseUrl);
+    url.searchParams.set(pagination.limitParam, String(params.limit));
+    if (cursor) {
+      url.searchParams.set(pagination.cursorParam, cursor);
+    }
+
+    const body = await fetchJson(url.toString());
+    const items = extractItems(body, config);
+    collected.push(...items);
+
+    const nextCursor = getByPath(body, pagination.nextCursorField) as string | null;
+    if (!nextCursor || items.length === 0) break;
+    cursor = nextCursor;
+  }
+
+  return {
+    items: collected.slice(params.offset, params.offset + params.limit),
+    total: undefined,
+  };
 }
 
 export async function fetchUpstreamItems(
   config: CollectionConfig,
   params: FetchParams,
 ): Promise<UpstreamPage> {
-  const url = new URL(config.upstream.baseUrl);
-  url.searchParams.set('offset', String(params.offset));
-  url.searchParams.set('limit', String(params.limit));
-
-  const response = await fetch(url.toString());
-  if (!response.ok) {
-    throw new Error(`Upstream error: ${response.status}`);
+  switch (config.upstream.pagination.type) {
+    case 'offset-limit':
+      return fetchOffsetLimit(config, params);
+    case 'page-pageSize':
+      return fetchPageBased(config, params);
+    case 'cursor':
+      return fetchCursorBased(config, params);
+    default:
+      throw new Error(`Unknown pagination type: ${(config.upstream.pagination as any).type}`);
   }
-
-  const body = await response.json() as Record<string, unknown>;
-  const { responseMapping } = config.upstream;
-
-  const items = getByPath(body, responseMapping.items) as Record<string, unknown>[];
-  const total = responseMapping.total
-    ? getByPath(body, responseMapping.total) as number | undefined
-    : undefined;
-
-  return { items: items || [], total };
 }
 
 export async function fetchUpstreamItem(
@@ -1205,16 +1396,8 @@ export async function fetchUpstreamItem(
   itemId: string,
 ): Promise<Record<string, unknown>> {
   const url = `${config.upstream.baseUrl}/${itemId}`;
-
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Upstream error: ${response.status}`);
-  }
-
-  const body = await response.json() as Record<string, unknown>;
-  const { responseMapping } = config.upstream;
-
-  return getByPath(body, responseMapping.item) as Record<string, unknown>;
+  const body = await fetchJson(url);
+  return getByPath(body, config.upstream.responseMapping.item) as Record<string, unknown>;
 }
 ```
 
@@ -2756,7 +2939,7 @@ git commit -m "docs: add QGIS and MapStore setup guides"
 | 2 | Mock API (3 endpoints, données hétérogènes) | Manual curl |
 | 3 | Registry YAML + loader | 6 unit tests |
 | 4 | GeoJSON builder (Point, Line, Polygon, WKT) | 7 unit tests |
-| 5 | Adapter (fetch upstream, parse response) | 4 unit tests |
+| 5 | Adapter (3 pagination strategies: offset/limit, page/pageSize, cursor) | 7 unit tests |
 | 6 | OGC API Features routes | Via conformance |
 | 7 | WFS 1.1.0 facade (XML caps, JSON describe, POST GetFeature) | Via conformance |
 | 8 | OGC conformance tests | ~25 integration tests |
@@ -2764,4 +2947,4 @@ git commit -m "docs: add QGIS and MapStore setup guides"
 | 10 | Docker Compose + MapStore | Manual |
 | 11 | Documentation QGIS + MapStore | — |
 
-**Total: 11 tasks, ~54 automated tests**
+**Total: 11 tasks, ~57 automated tests**
