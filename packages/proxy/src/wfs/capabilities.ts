@@ -17,7 +17,7 @@ export function buildCapabilitiesXml(req: Request): string {
       <Name>${id}</Name>
       <Title>${config.title}</Title>
       <Abstract>${config.description || ''}</Abstract>
-      <DefaultSRS>urn:x-ogc:def:crs:EPSG:4326</DefaultSRS>
+      <DefaultSRS>urn:ogc:def:crs:EPSG::4326</DefaultSRS>
       <ows:WGS84BoundingBox>
         <ows:LowerCorner>-73.98 45.41</ows:LowerCorner>
         <ows:UpperCorner>-73.47 45.70</ows:UpperCorner>

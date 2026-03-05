@@ -15,6 +15,7 @@ interface WfsGetFeatureParams {
   startIndex: number;
   bbox?: [number, number, number, number];
   outputFormat: string;
+  resultType: string;
 }
 
 export function parseGetFeatureGet(query: Record<string, string>): WfsGetFeatureParams {
@@ -23,6 +24,7 @@ export function parseGetFeatureGet(query: Record<string, string>): WfsGetFeature
     maxFeatures: parseInt(query.maxfeatures || query.count || '10'),
     startIndex: parseInt(query.startindex || '0'),
     outputFormat: query.outputformat || 'application/json',
+    resultType: query.resulttype || 'results',
   };
 }
 
@@ -48,6 +50,7 @@ export function parseGetFeaturePost(body: string): WfsGetFeatureParams {
     maxFeatures: parseInt(getFeature['@_maxFeatures'] || getFeature['@_count'] || '10'),
     startIndex: parseInt(getFeature['@_startIndex'] || '0'),
     outputFormat: getFeature['@_outputFormat'] || 'application/json',
+    resultType: getFeature['@_resultType'] || 'results',
     bbox,
   };
 }
@@ -55,6 +58,22 @@ export function parseGetFeaturePost(body: string): WfsGetFeatureParams {
 export async function executeGetFeature(params: WfsGetFeatureParams) {
   const config = getCollection(params.typeName);
   if (!config) return null;
+
+  if (params.resultType === 'hits') {
+    const upstream = await fetchUpstreamItems(config, { offset: 0, limit: 1 });
+    return {
+      type: 'FeatureCollection',
+      totalFeatures: upstream.total ?? 0,
+      features: [],
+      numberMatched: upstream.total ?? 0,
+      numberReturned: 0,
+      timeStamp: new Date().toISOString(),
+      crs: {
+        type: 'name',
+        properties: { name: 'urn:ogc:def:crs:EPSG::4326' },
+      },
+    };
+  }
 
   const upstream = await fetchUpstreamItems(config, {
     offset: params.startIndex,
@@ -69,6 +88,7 @@ export async function executeGetFeature(params: WfsGetFeatureParams) {
     features,
     numberMatched: upstream.total ?? features.length,
     numberReturned: features.length,
+    timeStamp: new Date().toISOString(),
     crs: {
       type: 'name',
       properties: { name: 'urn:ogc:def:crs:EPSG::4326' },

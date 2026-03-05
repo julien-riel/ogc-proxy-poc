@@ -10,7 +10,7 @@
 
 ---
 
-## Task 1: Mono-repo Scaffolding
+## Task 1: Mono-repo Scaffolding ✅ DONE
 
 **Files:**
 - Create: `package.json`
@@ -225,7 +225,7 @@ git commit -m "feat: scaffold mono-repo with npm workspaces"
 
 ---
 
-## Task 2: Mock API — Data + Routes + Server
+## Task 2: Mock API — Data + Routes + Server ✅ DONE
 
 **Files:**
 - Create: `packages/mock-api/src/data/bornes-fontaines.ts`
@@ -533,7 +533,7 @@ git commit -m "feat: add mock API with 3 heterogeneous endpoints"
 
 ---
 
-## Task 3: Proxy Engine — Registry (TDD)
+## Task 3: Proxy Engine — Registry (TDD) ✅ DONE
 
 **Files:**
 - Create: `packages/proxy/src/config/collections.yaml`
@@ -815,7 +815,7 @@ git commit -m "feat: add YAML registry with env var substitution (TDD)"
 
 ---
 
-## Task 4: Proxy Engine — GeoJSON Builder (TDD)
+## Task 4: Proxy Engine — GeoJSON Builder (TDD) ✅ DONE
 
 **Files:**
 - Create: `packages/proxy/src/engine/geojson-builder.test.ts`
@@ -1112,7 +1112,7 @@ git commit -m "feat: add GeoJSON builder with Point, LineString, Polygon support
 
 ---
 
-## Task 5: Proxy Engine — Adapter (TDD)
+## Task 5: Proxy Engine — Adapter (TDD) ✅ DONE
 
 **Files:**
 - Create: `packages/proxy/src/engine/adapter.test.ts`
@@ -1415,7 +1415,7 @@ git commit -m "feat: add upstream adapter with item/list fetching (TDD)"
 
 ---
 
-## Task 6: Proxy — OGC API Features Routes
+## Task 6: Proxy — OGC API Features Routes ✅ DONE
 
 **Files:**
 - Create: `packages/proxy/src/ogc/landing.ts`
@@ -1714,7 +1714,7 @@ git commit -m "feat: add OGC API Features routes (landing, collections, items)"
 
 ---
 
-## Task 7: Proxy — WFS 1.1.0 Facade
+## Task 7: Proxy — WFS 1.1.0 Facade ✅ DONE
 
 **Files:**
 - Create: `packages/proxy/src/wfs/router.ts`
@@ -2107,7 +2107,7 @@ git commit -m "feat: add WFS 1.1.0 facade (GetCapabilities, DescribeFeatureType,
 
 ---
 
-## Task 8: Conformance Tests — OGC API Features
+## Task 8: Conformance Tests — OGC API Features ✅ DONE
 
 **Files:**
 - Create: `packages/conformance-tests/src/global-setup.ts`
@@ -2523,7 +2523,7 @@ git commit -m "feat: add OGC API Features conformance test suite"
 
 ---
 
-## Task 9: Conformance Tests — WFS
+## Task 9: Conformance Tests — WFS ✅ DONE
 
 **Files:**
 - Create: `packages/conformance-tests/src/wfs/capabilities.test.ts`
@@ -2935,15 +2935,15 @@ git commit -m "docs: add QGIS and MapStore setup guides"
 
 | Task | Description | Tests |
 |---|---|---|
-| 1 | Mono-repo scaffolding | — |
-| 2 | Mock API (3 endpoints, données hétérogènes) | Manual curl |
-| 3 | Registry YAML + loader | 6 unit tests |
-| 4 | GeoJSON builder (Point, Line, Polygon, WKT) | 7 unit tests |
-| 5 | Adapter (3 pagination strategies: offset/limit, page/pageSize, cursor) | 7 unit tests |
-| 6 | OGC API Features routes | Via conformance |
-| 7 | WFS 1.1.0 facade (XML caps, JSON describe, POST GetFeature) | Via conformance |
-| 8 | OGC conformance tests | ~25 integration tests |
-| 9 | WFS conformance tests | ~12 integration tests |
+| 1 | ✅ Mono-repo scaffolding | — |
+| 2 | ✅ Mock API (3 endpoints, données hétérogènes) | Manual curl |
+| 3 | ✅ Registry YAML + loader | 6 unit tests |
+| 4 | ✅ GeoJSON builder (Point, Line, Polygon, WKT) | 8 unit tests |
+| 5 | ✅ Adapter (3 pagination strategies: offset/limit, page/pageSize, cursor) | 7 unit tests |
+| 6 | ✅ OGC API Features routes | Via conformance |
+| 7 | ✅ WFS 1.1.0 facade (XML caps, JSON describe, POST GetFeature) | Via conformance |
+| 8 | ✅ OGC conformance tests | 40 integration tests |
+| 9 | ✅ WFS conformance tests | 15 integration tests |
 | 10 | Docker Compose + MapStore | Manual |
 | 11 | Documentation QGIS + MapStore | — |
 
