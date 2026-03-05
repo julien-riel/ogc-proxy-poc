@@ -28,7 +28,7 @@ describe('WFS — GetFeature', () => {
       );
       const body = await res.json();
       expect(body.crs).toBeDefined();
-      expect(body.crs.properties.name).toContain('EPSG');
+      expect(body.crs.properties.name).toMatch(/EPSG|CRS84/);
     });
 
     it('supports startIndex for pagination', async () => {

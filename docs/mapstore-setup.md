@@ -13,7 +13,7 @@
 4. Cliquer sur le bouton **Catalogue** (icone de dossier dans la barre d'outils)
 5. Cliquer **+** pour ajouter un nouveau service
 6. Remplir :
-   - **URL** : `http://proxy:3000/wfs`
+   - **URL** : `http://localhost:8080/wfs`
    - **Type** : WFS
    - **Titre** : Proxy Municipal
 7. Cliquer **Sauvegarder**
