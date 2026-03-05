@@ -1,0 +1,17 @@
+export const bornesFontaines = [
+  { id: 1, x: -73.5673, y: 45.5017, etat: "actif", arrondissement: "Ville-Marie" },
+  { id: 2, x: -73.5612, y: 45.5088, etat: "actif", arrondissement: "Ville-Marie" },
+  { id: 3, x: -73.5789, y: 45.4956, etat: "inactif", arrondissement: "Ville-Marie" },
+  { id: 4, x: -73.5824, y: 45.5205, etat: "actif", arrondissement: "Le Plateau-Mont-Royal" },
+  { id: 5, x: -73.5741, y: 45.5263, etat: "actif", arrondissement: "Le Plateau-Mont-Royal" },
+  { id: 6, x: -73.5698, y: 45.5311, etat: "inactif", arrondissement: "Le Plateau-Mont-Royal" },
+  { id: 7, x: -73.5856, y: 45.5378, etat: "actif", arrondissement: "Le Plateau-Mont-Royal" },
+  { id: 8, x: -73.5934, y: 45.5456, etat: "actif", arrondissement: "Rosemont-La Petite-Patrie" },
+  { id: 9, x: -73.5812, y: 45.5523, etat: "actif", arrondissement: "Rosemont-La Petite-Patrie" },
+  { id: 10, x: -73.5743, y: 45.5589, etat: "inactif", arrondissement: "Rosemont-La Petite-Patrie" },
+  { id: 11, x: -73.5667, y: 45.4634, etat: "actif", arrondissement: "Verdun" },
+  { id: 12, x: -73.5712, y: 45.4589, etat: "actif", arrondissement: "Verdun" },
+  { id: 13, x: -73.5856, y: 45.4712, etat: "actif", arrondissement: "Le Sud-Ouest" },
+  { id: 14, x: -73.5923, y: 45.4778, etat: "inactif", arrondissement: "Le Sud-Ouest" },
+  { id: 15, x: -73.5534, y: 45.5145, etat: "actif", arrondissement: "Ville-Marie" },
+];
