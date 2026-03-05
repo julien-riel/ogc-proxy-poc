@@ -1,0 +1,23 @@
+services:
+  mock-api:
+    build:
+      context: ./packages/mock-api
+    ports:
+      - "3001:3001"
+
+  proxy:
+    build:
+      context: ./packages/proxy
+    ports:
+      - "3000:3000"
+    environment:
+      - UPSTREAM_HOST=http://mock-api:3001
+    depends_on:
+      - mock-api
+
+  mapstore:
+    image: geosolutionsit/mapstore2:latest
+    ports:
+      - "8080:8080"
+    depends_on:
+      - proxy
