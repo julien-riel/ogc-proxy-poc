@@ -15,7 +15,7 @@
    - **URL** : `http://localhost:3000/ogc`
    - **Version** : `OGC API - Features`
 5. Cliquer **OK** puis **Connexion**
-6. Les 3 collections apparaissent : bornes-fontaines, pistes-cyclables, arrondissements
+6. Les 4 collections apparaissent : bornes-fontaines, pistes-cyclables, arrondissements, mrc-quebec
 7. Selectionner une ou plusieurs couches et cliquer **Ajouter**
 
 ## Verification
@@ -30,6 +30,20 @@
 1. Zoomer sur un secteur de la carte
 2. QGIS envoie automatiquement le bbox dans les requetes
 3. Seules les features visibles sont chargees
+
+## Filtres
+
+### Query string simple
+Ajouter `?etat=actif` a l'URL de la couche pour filtrer par attribut.
+
+### CQL2
+Utiliser le parametre `filter` avec `filter-lang=cql2-text`:
+- `filter=etat='actif' AND population>50000`
+- `filter=S_INTERSECTS(geometry,POLYGON((...)))`
+
+### MRC du Quebec (WFS upstream)
+La collection `mrc-quebec` est alimentee par le GeoServer PAVICS Ouranos.
+Elle supporte les filtres spatiaux avances via pass-through WFS.
 
 ## Notes
 
