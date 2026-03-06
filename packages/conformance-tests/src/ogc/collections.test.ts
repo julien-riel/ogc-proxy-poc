@@ -26,6 +26,7 @@ describe('OGC API — Collections (/ogc/collections)', () => {
     expect(ids).toContain('bornes-fontaines');
     expect(ids).toContain('pistes-cyclables');
     expect(ids).toContain('arrondissements');
+    expect(ids).toContain('mrc-quebec');
   });
 
   it('each collection has id, title, and links', async () => {

@@ -8,6 +8,7 @@ import { parseCql2, evaluateFilter, extractBboxFromAst } from '../engine/cql2/in
 import { runHook } from '../engine/plugin.js';
 import type { CqlNode } from '../engine/cql2/types.js';
 import type { PropertyConfig } from '../engine/types.js';
+import { parseSortby, validateSortable, buildUpstreamSort } from '../engine/sorting.js';
 
 function getBaseUrl(req: Request): string {
   return process.env.BASE_URL || `${req.protocol}://${req.get('host')}/ogc`;
@@ -147,6 +148,18 @@ export async function getItems(req: Request, res: Response) {
 
   // Build post-fetch filter for simple params not passed to upstream
   const postFetchSimpleAst = buildPostFetchSimpleFilters(queryParams, config.properties);
+
+  // Sorting
+  const sortbyStr = req.query.sortby as string | undefined;
+  if (sortbyStr) {
+    const sortFields = parseSortby(sortbyStr);
+    const sortError = validateSortable(sortFields, config.properties);
+    if (sortError) {
+      return res.status(400).json({ code: 'InvalidSortby', description: sortError });
+    }
+    const sortParams = buildUpstreamSort(sortFields, config.properties);
+    Object.assign(upstreamParams, sortParams);
+  }
 
   // Load plugin
   const plugin = await getCollectionPlugin(collectionId);
