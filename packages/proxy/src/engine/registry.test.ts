@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { loadRegistry, getCollection, getCollectionIds } from './registry.js';
+import { loadRegistry, getCollection, getCollectionIds, getCollectionPlugin } from './registry.js';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -47,5 +47,11 @@ describe('Registry', () => {
     loadRegistry(configPath);
     const arr = getCollection('arrondissements');
     expect(arr!.upstream.responseMapping.total).toBeNull();
+  });
+
+  it('returns null plugin for collection without plugin', async () => {
+    loadRegistry(configPath);
+    const plugin = await getCollectionPlugin('bornes-fontaines');
+    expect(plugin).toBeNull();
   });
 });

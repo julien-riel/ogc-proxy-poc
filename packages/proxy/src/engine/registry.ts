@@ -3,6 +3,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { parse } from 'yaml';
 import type { RegistryConfig, CollectionConfig } from './types.js';
+import { loadPlugin, type CollectionPlugin } from './plugin.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -44,4 +45,16 @@ export function getCollection(id: string): CollectionConfig | undefined {
 
 export function getCollectionIds(): string[] {
   return Object.keys(getRegistry().collections);
+}
+
+const pluginCache = new Map<string, CollectionPlugin | null>();
+
+export async function getCollectionPlugin(collectionId: string): Promise<CollectionPlugin | null> {
+  if (pluginCache.has(collectionId)) {
+    return pluginCache.get(collectionId)!;
+  }
+  const config = getCollection(collectionId);
+  const plugin = await loadPlugin(config?.plugin);
+  pluginCache.set(collectionId, plugin);
+  return plugin;
 }
