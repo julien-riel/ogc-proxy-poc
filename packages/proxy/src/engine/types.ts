@@ -1,6 +1,16 @@
+export interface UpstreamPropertyMapping {
+  param?: string;
+  operators?: string[];
+  sortParam?: string;
+  sortDesc?: string;
+}
+
 export interface PropertyConfig {
   name: string;
   type: string;
+  filterable?: boolean;
+  sortable?: boolean;
+  upstream?: UpstreamPropertyMapping;
 }
 
 export interface OffsetLimitPagination {
@@ -27,7 +37,11 @@ export type PaginationConfig = OffsetLimitPagination | PagePagination | CursorPa
 export interface CollectionConfig {
   title: string;
   description?: string;
+  plugin?: string;
+  maxPageSize?: number;
+  maxFeatures?: number;
   upstream: {
+    type?: 'rest' | 'wfs';
     baseUrl: string;
     method: string;
     pagination: PaginationConfig;
@@ -36,6 +50,9 @@ export interface CollectionConfig {
       total: string | null;
       item: string;
     };
+    spatialCapabilities?: string[];
+    typeName?: string;
+    version?: string;
   };
   geometry: {
     type: 'Point' | 'LineString' | 'Polygon';
@@ -48,6 +65,12 @@ export interface CollectionConfig {
   properties: PropertyConfig[];
 }
 
+export interface DefaultsConfig {
+  maxPageSize?: number;
+  maxFeatures?: number;
+}
+
 export interface RegistryConfig {
+  defaults?: DefaultsConfig;
   collections: Record<string, CollectionConfig>;
 }
