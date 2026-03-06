@@ -13,7 +13,7 @@ Proxy qui expose des APIs REST internes en **OGC API Features** et **WFS 1.1.0**
 
 ```bash
 npm install
-npm run dev
+UPSTREAM_HOST=http://localhost:3001 npm run dev
 ```
 
 Le mock API demarre sur `http://localhost:3001` et le proxy sur `http://localhost:3000`.
