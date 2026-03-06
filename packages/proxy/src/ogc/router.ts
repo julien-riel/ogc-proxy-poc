@@ -3,6 +3,7 @@ import { landing } from './landing.js';
 import { conformance } from './conformance.js';
 import { listCollections, getCollectionById } from './collections.js';
 import { getItems, getItem } from './items.js';
+import { getQueryables } from './queryables.js';
 
 const router = Router();
 
@@ -17,6 +18,7 @@ router.get('/api', (_req, res) => {
 router.get('/conformance', conformance);
 router.get('/collections', listCollections);
 router.get('/collections/:collectionId', getCollectionById);
+router.get('/collections/:collectionId/queryables', getQueryables);
 router.get('/collections/:collectionId/items', getItems);
 router.get('/collections/:collectionId/items/:featureId', getItem);
 

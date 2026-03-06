@@ -1,4 +1,5 @@
 import type { Feature } from 'geojson';
+import { wfsUpstreamPlugin } from '../plugins/wfs-upstream.js';
 
 export interface OgcRequest {
   collectionId: string;
@@ -39,6 +40,7 @@ export interface CollectionPlugin {
 
 const builtinPlugins: Record<string, CollectionPlugin> = {
   noop: {},
+  'wfs-upstream': wfsUpstreamPlugin,
 };
 
 /**
