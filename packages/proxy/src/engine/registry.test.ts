@@ -13,7 +13,7 @@ describe('Registry', () => {
 
   it('loads all collections from YAML', () => {
     const registry = loadRegistry(configPath);
-    expect(Object.keys(registry.collections)).toHaveLength(3);
+    expect(Object.keys(registry.collections)).toHaveLength(4);
   });
 
   it('substitutes environment variables in URLs', () => {
