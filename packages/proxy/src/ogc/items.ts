@@ -92,7 +92,7 @@ function buildPostFetchSimpleFilters(
 }
 
 export async function getItems(req: Request, res: Response) {
-  const { collectionId } = req.params;
+  const collectionId = req.params.collectionId as string;
   const config = getCollection(collectionId);
 
   if (!config) {
@@ -250,7 +250,8 @@ export async function getItems(req: Request, res: Response) {
 }
 
 export async function getItem(req: Request, res: Response) {
-  const { collectionId, featureId } = req.params;
+  const collectionId = req.params.collectionId as string;
+  const featureId = req.params.featureId as string;
   const config = getCollection(collectionId);
 
   if (!config) {

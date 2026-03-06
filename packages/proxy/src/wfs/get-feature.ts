@@ -136,7 +136,7 @@ export async function executeGetFeature(params: WfsGetFeatureParams) {
 
   const features = upstream.items
     .map(item => buildFeature(item, config))
-    .map(f => reprojectFeature(f as Record<string, unknown>, srs));
+    .map(f => reprojectFeature(f as unknown as Record<string, unknown>, srs));
 
   return {
     type: 'FeatureCollection',

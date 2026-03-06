@@ -20,7 +20,7 @@ const GEOM_REF: Record<string, string> = {
 };
 
 export function getQueryables(req: Request, res: Response) {
-  const { collectionId } = req.params;
+  const collectionId = req.params.collectionId as string;
   const config = getCollection(collectionId);
 
   if (!config) {

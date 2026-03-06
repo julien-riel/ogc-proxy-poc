@@ -28,7 +28,7 @@ export function listCollections(req: Request, res: Response) {
 
 export function getCollectionById(req: Request, res: Response) {
   const base = getBaseUrl(req);
-  const { collectionId } = req.params;
+  const collectionId = req.params.collectionId as string;
   const config = getCollection(collectionId);
 
   if (!config) {

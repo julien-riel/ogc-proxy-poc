@@ -4,7 +4,7 @@ import type { CollectionConfig } from './types.js';
 
 const pointConfig: CollectionConfig = {
   title: 'Test Points',
-  upstream: { baseUrl: '', method: 'GET', responseMapping: { items: '', total: '', item: '' } },
+  upstream: { baseUrl: '', method: 'GET', pagination: { type: 'offset-limit', offsetParam: 'offset', limitParam: 'limit' }, responseMapping: { items: '', total: '', item: '' } },
   geometry: { type: 'Point', xField: 'x', yField: 'y' },
   idField: 'id',
   properties: [{ name: 'etat', type: 'string' }],
@@ -12,7 +12,7 @@ const pointConfig: CollectionConfig = {
 
 const lineConfig: CollectionConfig = {
   title: 'Test Lines',
-  upstream: { baseUrl: '', method: 'GET', responseMapping: { items: '', total: '', item: '' } },
+  upstream: { baseUrl: '', method: 'GET', pagination: { type: 'offset-limit', offsetParam: 'offset', limitParam: 'limit' }, responseMapping: { items: '', total: '', item: '' } },
   geometry: { type: 'LineString', coordsField: 'geometry.coords' },
   idField: 'id',
   properties: [{ name: 'nom', type: 'string' }],
@@ -20,7 +20,7 @@ const lineConfig: CollectionConfig = {
 
 const polygonConfig: CollectionConfig = {
   title: 'Test Polygons',
-  upstream: { baseUrl: '', method: 'GET', responseMapping: { items: '', total: '', item: '' } },
+  upstream: { baseUrl: '', method: 'GET', pagination: { type: 'offset-limit', offsetParam: 'offset', limitParam: 'limit' }, responseMapping: { items: '', total: '', item: '' } },
   geometry: { type: 'Polygon', wktField: 'wkt' },
   idField: 'code',
   properties: [{ name: 'nom', type: 'string' }],
