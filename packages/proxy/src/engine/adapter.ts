@@ -1,10 +1,12 @@
-import type { CollectionConfig, PaginationConfig } from './types.js';
+import type { CollectionConfig } from './types.js';
 import { getByPath } from './geojson-builder.js';
+import { buildWfsGetFeatureUrl } from '../plugins/wfs-upstream.js';
 
-interface FetchParams {
+export interface FetchParams {
   offset: number;
   limit: number;
   bbox?: [number, number, number, number];
+  upstreamParams?: Record<string, string>;
 }
 
 export interface UpstreamPage {
@@ -35,11 +37,23 @@ function extractTotal(body: Record<string, unknown>, config: CollectionConfig): 
   return total ? (getByPath(body, total) as number | undefined) : undefined;
 }
 
+function applyExtraParams(url: URL, params: FetchParams): void {
+  if (params.bbox) {
+    url.searchParams.set('bbox', params.bbox.join(','));
+  }
+  if (params.upstreamParams) {
+    for (const [key, value] of Object.entries(params.upstreamParams)) {
+      url.searchParams.set(key, value);
+    }
+  }
+}
+
 async function fetchOffsetLimit(config: CollectionConfig, params: FetchParams): Promise<UpstreamPage> {
   const pagination = config.upstream.pagination as { offsetParam: string; limitParam: string };
   const url = new URL(config.upstream.baseUrl);
   url.searchParams.set(pagination.offsetParam, String(params.offset));
   url.searchParams.set(pagination.limitParam, String(params.limit));
+  applyExtraParams(url, params);
 
   const body = await fetchJson(url.toString());
   return { items: extractItems(body, config), total: extractTotal(body, config) };
@@ -52,6 +66,7 @@ async function fetchPageBased(config: CollectionConfig, params: FetchParams): Pr
   const url = new URL(config.upstream.baseUrl);
   url.searchParams.set(pagination.pageParam, String(page));
   url.searchParams.set(pagination.pageSizeParam, String(params.limit));
+  applyExtraParams(url, params);
 
   const body = await fetchJson(url.toString());
   return { items: extractItems(body, config), total: extractTotal(body, config) };
@@ -73,6 +88,7 @@ async function fetchCursorBased(config: CollectionConfig, params: FetchParams): 
     if (cursor) {
       url.searchParams.set(pagination.cursorParam, cursor);
     }
+    applyExtraParams(url, params);
 
     const body = await fetchJson(url.toString());
     const items = extractItems(body, config);
@@ -89,10 +105,37 @@ async function fetchCursorBased(config: CollectionConfig, params: FetchParams): 
   };
 }
 
+async function fetchWfsUpstream(config: CollectionConfig, params: FetchParams): Promise<UpstreamPage> {
+  const url = buildWfsGetFeatureUrl(
+    config.upstream.baseUrl,
+    config.upstream.typeName!,
+    {
+      startIndex: params.offset,
+      count: params.limit,
+      version: config.upstream.version ?? '1.1.0',
+      bbox: params.bbox,
+    },
+  );
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new UpstreamError(response.status);
+  }
+  const body = await response.json() as Record<string, unknown>;
+  const features = (body.features ?? []) as Record<string, unknown>[];
+  const total = body.totalFeatures as number | undefined;
+
+  return { items: features, total };
+}
+
 export async function fetchUpstreamItems(
   config: CollectionConfig,
   params: FetchParams,
 ): Promise<UpstreamPage> {
+  if (config.upstream.type === 'wfs') {
+    return fetchWfsUpstream(config, params);
+  }
+
   switch (config.upstream.pagination.type) {
     case 'offset-limit':
       return fetchOffsetLimit(config, params);

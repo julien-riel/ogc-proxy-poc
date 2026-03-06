@@ -11,6 +11,11 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@turf/bbox": "^7.3.4",
+    "@turf/boolean-intersects": "^7.3.4",
+    "@turf/boolean-within": "^7.3.4",
+    "@turf/distance": "^7.3.4",
+    "@turf/helpers": "^7.3.4",
     "cors": "^2.8.5",
     "express": "^4.21.0",
     "fast-xml-parser": "^4.5.0",

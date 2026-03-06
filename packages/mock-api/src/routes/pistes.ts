@@ -6,13 +6,21 @@ const router = Router();
 router.get('/', (req, res) => {
   const page = parseInt(req.query.page as string) || 1;
   const pageSize = parseInt(req.query.pageSize as string) || 10;
+
+  let filtered = pistesCyclables;
+
+  // Attribute filters
+  const { nom, type: typeFilter } = req.query;
+  if (nom) filtered = filtered.filter(p => p.nom === nom);
+  if (typeFilter) filtered = filtered.filter(p => p.type === typeFilter);
+
   const start = (page - 1) * pageSize;
-  const items = pistesCyclables.slice(start, start + pageSize);
+  const items = filtered.slice(start, start + pageSize);
   res.json({
     results: items,
-    count: pistesCyclables.length,
+    count: filtered.length,
     page,
-    totalPages: Math.ceil(pistesCyclables.length / pageSize),
+    totalPages: Math.ceil(filtered.length / pageSize),
   });
 });
 

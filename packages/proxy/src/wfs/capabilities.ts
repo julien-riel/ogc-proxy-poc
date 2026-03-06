@@ -88,14 +88,26 @@ export function buildCapabilitiesXml(req: Request): string {
     <ogc:Spatial_Capabilities>
       <ogc:GeometryOperands>
         <ogc:GeometryOperand>gml:Envelope</ogc:GeometryOperand>
+        <ogc:GeometryOperand>gml:Point</ogc:GeometryOperand>
+        <ogc:GeometryOperand>gml:Polygon</ogc:GeometryOperand>
       </ogc:GeometryOperands>
       <ogc:SpatialOperators>
         <ogc:SpatialOperator name="BBOX"/>
+        <ogc:SpatialOperator name="Intersects"/>
+        <ogc:SpatialOperator name="Within"/>
       </ogc:SpatialOperators>
     </ogc:Spatial_Capabilities>
     <ogc:Scalar_Capabilities>
       <ogc:LogicalOperators/>
-      <ogc:ComparisonOperators/>
+      <ogc:ComparisonOperators>
+        <ogc:ComparisonOperator>EqualTo</ogc:ComparisonOperator>
+        <ogc:ComparisonOperator>NotEqualTo</ogc:ComparisonOperator>
+        <ogc:ComparisonOperator>LessThan</ogc:ComparisonOperator>
+        <ogc:ComparisonOperator>GreaterThan</ogc:ComparisonOperator>
+        <ogc:ComparisonOperator>LessThanEqualTo</ogc:ComparisonOperator>
+        <ogc:ComparisonOperator>GreaterThanEqualTo</ogc:ComparisonOperator>
+        <ogc:ComparisonOperator>Like</ogc:ComparisonOperator>
+      </ogc:ComparisonOperators>
     </ogc:Scalar_Capabilities>
     <ogc:Id_Capabilities>
       <ogc:FID/>

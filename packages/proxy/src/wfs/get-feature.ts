@@ -17,6 +17,8 @@ interface WfsGetFeatureParams {
   outputFormat: string;
   resultType: string;
   srsName: string;
+  cqlFilter?: string;
+  sortBy?: string;
 }
 
 const R = 20037508.342789244;
@@ -72,6 +74,8 @@ export function parseGetFeatureGet(query: Record<string, string>): WfsGetFeature
     outputFormat: query.outputformat || 'application/json',
     resultType: query.resulttype || 'results',
     srsName: query.srsname || '',
+    cqlFilter: query.cql_filter,
+    sortBy: query.sortby,
   };
 }
 
