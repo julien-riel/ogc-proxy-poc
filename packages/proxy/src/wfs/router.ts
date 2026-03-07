@@ -39,7 +39,7 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
         case 'describefeaturetype': {
           const typeName = query.typename || query.typenames || '';
           const result = buildDescribeFeatureType(typeName);
-          if (!result) return res.status(404).json({ error: `Type '${typeName}' not found` });
+          if (!result) return res.status(404).json({ error: 'Requested type not found' });
           return res.json(result);
         }
 
@@ -47,7 +47,7 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
           try {
             const params = parseGetFeatureGet(query);
             const result = await executeGetFeature(params);
-            if (!result) return res.status(404).json({ error: `Type '${params.typeName}' not found` });
+            if (!result) return res.status(404).json({ error: 'Requested type not found' });
             return res.json(result);
           } catch (err) {
             if (err instanceof UpstreamTimeoutError) {
@@ -62,7 +62,7 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
         }
 
         default:
-          return res.status(400).json({ error: `Unknown request: ${request}` });
+          return res.status(400).json({ error: 'Unknown or missing WFS request parameter' });
       }
     });
   });
@@ -74,7 +74,7 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
     try {
       const params = parseGetFeaturePost(body);
       const result = await executeGetFeature(params);
-      if (!result) return res.status(404).json({ error: `Type '${params.typeName}' not found` });
+      if (!result) return res.status(404).json({ error: 'Requested type not found' });
       return res.json(result);
     } catch (err) {
       if (err instanceof UpstreamTimeoutError) {
