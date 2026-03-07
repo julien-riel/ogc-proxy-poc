@@ -57,8 +57,7 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
             }
             const log = logger.wfs();
             log.error({ err, query }, 'WFS GetFeature failed');
-            const message = err instanceof Error ? err.message : 'Unknown error';
-            return res.status(502).json({ error: message });
+            return res.status(502).json({ error: 'An upstream error occurred' });
           }
         }
 
@@ -85,8 +84,7 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
       }
       const log = logger.wfs();
       log.error({ err }, 'WFS GetFeature POST failed');
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      return res.status(502).json({ error: message });
+      return res.status(502).json({ error: 'An upstream error occurred' });
     }
   });
 

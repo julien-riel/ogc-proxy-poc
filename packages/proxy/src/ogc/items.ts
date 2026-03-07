@@ -370,8 +370,7 @@ export async function getItems(req: Request, res: Response) {
     }
     const log = logger.items();
     log.error({ err, collectionId, query: req.query }, 'getItems failed');
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    res.status(502).json({ code: 'UpstreamError', description: message });
+    res.status(502).json({ code: 'UpstreamError', description: 'An upstream error occurred' });
   }
 }
 
@@ -424,7 +423,6 @@ export async function getItem(req: Request, res: Response) {
     }
     const log = logger.items();
     log.error({ err, collectionId, featureId }, 'getItem failed');
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    res.status(502).json({ code: 'UpstreamError', description: message });
+    res.status(502).json({ code: 'UpstreamError', description: 'An upstream error occurred' });
   }
 }
