@@ -112,13 +112,24 @@ function parseIsNull(node: Record<string, unknown>): CqlNode {
  * Parses a logical (And/Or) operator node into a CqlNode tree.
  */
 function parseLogical(operator: 'AND' | 'OR', node: Record<string, unknown>): CqlNode {
-  // Logical operators can contain multiple children — collect them all
+  // Logical operators can contain multiple children — collect them all.
+  // When fast-xml-parser encounters duplicate element names (e.g. two
+  // PropertyIsEqualTo siblings), it merges them into an array under a
+  // single key. We must expand those arrays back into individual children.
   const children: CqlNode[] = [];
   for (const [key, value] of Object.entries(node)) {
     if (key.startsWith('@_')) continue;
-    const childFilter = { [key]: value } as Record<string, unknown>;
-    const child = parseFilterXml(childFilter);
-    if (child) children.push(child);
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const childFilter = { [key]: item } as Record<string, unknown>;
+        const child = parseFilterXml(childFilter);
+        if (child) children.push(child);
+      }
+    } else {
+      const childFilter = { [key]: value } as Record<string, unknown>;
+      const child = parseFilterXml(childFilter);
+      if (child) children.push(child);
+    }
   }
   if (children.length === 0) throw new Error(`Empty ${operator} filter`);
   if (children.length === 1) return children[0];
