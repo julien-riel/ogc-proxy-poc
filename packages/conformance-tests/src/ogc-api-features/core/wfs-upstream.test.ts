@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fetchGeoJson, fetchJson } from '../helpers.js';
+import { fetchGeoJson, fetchJson } from '../../helpers.js';
 
 describe('OGC API — WFS Upstream (mrc-quebec via PAVICS)', () => {
   it('appears in collections list', async () => {
