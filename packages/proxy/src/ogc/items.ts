@@ -120,6 +120,14 @@ export async function getItems(req: Request, res: Response) {
 
   // Parse CQL2 filter
   const filterStr = req.query.filter as string | undefined;
+  const filterLang = req.query['filter-lang'] as string | undefined;
+  if (filterStr && filterLang && filterLang !== 'cql2-text') {
+    return res.status(400).json({
+      code: 'InvalidFilterLang',
+      description: `Unsupported filter language: '${filterLang}'. Only 'cql2-text' is supported.`,
+    });
+  }
+
   let cqlAst: CqlNode | null = null;
   if (filterStr) {
     try {
