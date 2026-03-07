@@ -135,7 +135,7 @@ async function fetchCursorBased(config: CollectionConfig, params: FetchParams): 
   };
 
   let cursor: string | undefined;
-  let collected: Record<string, unknown>[] = [];
+  const collected: Record<string, unknown>[] = [];
 
   while (collected.length < params.offset + params.limit) {
     const url = new URL(config.upstream.baseUrl);

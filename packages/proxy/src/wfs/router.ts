@@ -19,7 +19,7 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
 
   router.use(express.text({ type: ['application/xml', 'text/xml'], limit: '100kb' }));
 
-  router.get('/', (req, res, next) => {
+  router.get('/', (req, res, _next) => {
     const query = normalizeQuery(req.query as Record<string, unknown>);
     const request = (query.request || '').toLowerCase();
 

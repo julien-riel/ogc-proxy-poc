@@ -314,7 +314,7 @@ export async function getItems(req: Request, res: Response) {
     });
 
     // Hook: transformUpstreamResponse
-    let rawItems = await runHook(plugin, 'transformUpstreamResponse', upstream.items);
+    const rawItems = await runHook(plugin, 'transformUpstreamResponse', upstream.items);
 
     // Build features (skip if plugin says so)
     let features: GeoJSON.Feature[];

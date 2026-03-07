@@ -1,7 +1,7 @@
 import { XMLParser } from 'fast-xml-parser';
 import { getCollection } from '../engine/registry.js';
 import { fetchUpstreamItems } from '../engine/adapter.js';
-import { buildFeature, buildFeatureSafe } from '../engine/geojson-builder.js';
+import { buildFeatureSafe } from '../engine/geojson-builder.js';
 import { parseFilterXml } from './filter-encoding.js';
 import { evaluateFilter } from '../engine/cql2/evaluator.js';
 import { parseCql2 } from '../engine/cql2/parser.js';
