@@ -40,6 +40,9 @@ export interface CollectionConfig {
   plugin?: string;
   maxPageSize?: number;
   maxFeatures?: number;
+  extent?: {
+    spatial: [number, number, number, number]; // [minLon, minLat, maxLon, maxLat]
+  };
   upstream: {
     type?: 'rest' | 'wfs';
     baseUrl: string;

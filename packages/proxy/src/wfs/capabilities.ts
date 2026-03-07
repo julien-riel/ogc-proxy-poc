@@ -12,7 +12,11 @@ export function buildCapabilitiesXml(req: Request): string {
   const registry = getRegistry();
   const serviceUrl = getServiceUrl(req);
 
-  const featureTypes = Object.entries(registry.collections).map(([id, config]) => `
+  const defaultExtent: [number, number, number, number] = [-73.98, 45.41, -73.47, 45.70];
+
+  const featureTypes = Object.entries(registry.collections).map(([id, config]) => {
+    const [minLon, minLat, maxLon, maxLat] = config.extent?.spatial ?? defaultExtent;
+    return `
     <FeatureType>
       <Name>${id}</Name>
       <Title>${config.title}</Title>
@@ -20,10 +24,11 @@ export function buildCapabilitiesXml(req: Request): string {
       <DefaultSRS>urn:ogc:def:crs:OGC:1.3:CRS84</DefaultSRS>
       <OtherSRS>urn:ogc:def:crs:EPSG::3857</OtherSRS>
       <ows:WGS84BoundingBox>
-        <ows:LowerCorner>-73.98 45.41</ows:LowerCorner>
-        <ows:UpperCorner>-73.47 45.70</ows:UpperCorner>
+        <ows:LowerCorner>${minLon} ${minLat}</ows:LowerCorner>
+        <ows:UpperCorner>${maxLon} ${maxLat}</ows:UpperCorner>
       </ows:WGS84BoundingBox>
-    </FeatureType>`).join('\n');
+    </FeatureType>`;
+  }).join('\n');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <wfs:WFS_Capabilities

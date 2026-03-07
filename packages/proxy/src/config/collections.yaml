@@ -5,6 +5,8 @@ defaults:
 collections:
   bornes-fontaines:
     title: "Bornes-fontaines"
+    extent:
+      spatial: [-73.98, 45.41, -73.47, 45.70]
     description: "Bornes-fontaines municipales"
     upstream:
       type: "rest"
@@ -41,6 +43,8 @@ collections:
 
   pistes-cyclables:
     title: "Pistes cyclables"
+    extent:
+      spatial: [-73.98, 45.41, -73.47, 45.70]
     description: "Reseau cyclable municipal"
     upstream:
       type: "rest"
@@ -79,6 +83,8 @@ collections:
 
   arrondissements:
     title: "Arrondissements"
+    extent:
+      spatial: [-73.98, 45.41, -73.47, 45.70]
     description: "Arrondissements de la ville"
     upstream:
       type: "rest"
@@ -113,6 +119,8 @@ collections:
 
   mrc-quebec:
     title: "MRC du Quebec"
+    extent:
+      spatial: [-79.76, 44.99, -56.93, 62.59]
     description: "Municipalites regionales de comte du Quebec (PAVICS Ouranos)"
     plugin: "wfs-upstream"
     upstream:
