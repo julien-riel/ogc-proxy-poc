@@ -85,6 +85,64 @@ class Parser {
         return { type: 'like', property, pattern };
       }
 
+      // IN
+      if (this.peek().type === 'KEYWORD' && (this.peek() as { value: string }).value === 'IN') {
+        this.advance();
+        this.expect('LPAREN');
+        const values: (string | number)[] = [];
+        const first = this.advance();
+        values.push(
+          first.type === 'STRING'
+            ? (first as { type: 'STRING'; value: string }).value
+            : (first as { type: 'NUMBER'; value: number }).value,
+        );
+        while (this.peek().type === 'COMMA') {
+          this.advance();
+          const v = this.advance();
+          values.push(
+            v.type === 'STRING'
+              ? (v as { type: 'STRING'; value: string }).value
+              : (v as { type: 'NUMBER'; value: number }).value,
+          );
+        }
+        this.expect('RPAREN');
+        return { type: 'in', property, values };
+      }
+
+      // BETWEEN
+      if (this.peek().type === 'KEYWORD' && (this.peek() as { value: string }).value === 'BETWEEN') {
+        this.advance();
+        const lowToken = this.advance();
+        const low = lowToken.type === 'STRING'
+          ? (lowToken as { type: 'STRING'; value: string }).value
+          : (lowToken as { type: 'NUMBER'; value: number }).value;
+        // Expect AND keyword
+        const andToken = this.advance();
+        if (andToken.type !== 'KEYWORD' || (andToken as { value: string }).value !== 'AND') {
+          throw new Error(`Expected AND in BETWEEN, got ${JSON.stringify(andToken)}`);
+        }
+        const highToken = this.advance();
+        const high = highToken.type === 'STRING'
+          ? (highToken as { type: 'STRING'; value: string }).value
+          : (highToken as { type: 'NUMBER'; value: number }).value;
+        return { type: 'between', property, low, high };
+      }
+
+      // IS NULL / IS NOT NULL
+      if (this.peek().type === 'KEYWORD' && (this.peek() as { value: string }).value === 'IS') {
+        this.advance();
+        let negated = false;
+        if (this.peek().type === 'KEYWORD' && (this.peek() as { value: string }).value === 'NOT') {
+          this.advance();
+          negated = true;
+        }
+        const nullToken = this.advance();
+        if (nullToken.type !== 'KEYWORD' || (nullToken as { value: string }).value !== 'NULL') {
+          throw new Error(`Expected NULL after IS, got ${JSON.stringify(nullToken)}`);
+        }
+        return { type: 'isNull', property, negated };
+      }
+
       // Comparison
       const op = (this.expect('OPERATOR') as { type: 'OPERATOR'; value: string }).value;
       const valToken = this.advance();

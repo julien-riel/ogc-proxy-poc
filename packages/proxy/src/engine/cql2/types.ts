@@ -3,7 +3,10 @@ export type CqlNode =
   | CqlLogical
   | CqlSpatial
   | CqlLike
-  | CqlNot;
+  | CqlNot
+  | CqlIn
+  | CqlBetween
+  | CqlIsNull;
 
 export interface CqlComparison {
   type: 'comparison';
@@ -28,6 +31,25 @@ export interface CqlLogical {
 export interface CqlNot {
   type: 'not';
   operand: CqlNode;
+}
+
+export interface CqlIn {
+  type: 'in';
+  property: string;
+  values: (string | number)[];
+}
+
+export interface CqlBetween {
+  type: 'between';
+  property: string;
+  low: string | number;
+  high: string | number;
+}
+
+export interface CqlIsNull {
+  type: 'isNull';
+  property: string;
+  negated: boolean;
 }
 
 export interface CqlSpatial {

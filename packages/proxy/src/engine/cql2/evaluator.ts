@@ -50,6 +50,22 @@ export function evaluateFilter(node: CqlNode, feature: Feature): boolean {
     case 'not':
       return !evaluateFilter(node.operand, feature);
 
+    case 'in': {
+      const val = getPropertyValue(feature, node.property);
+      return node.values.some(v => val == v);
+    }
+
+    case 'between': {
+      const val = getPropertyValue(feature, node.property) as number;
+      return val >= (node.low as number) && val <= (node.high as number);
+    }
+
+    case 'isNull': {
+      const val = getPropertyValue(feature, node.property);
+      const isNull = val === null || val === undefined;
+      return node.negated ? !isNull : isNull;
+    }
+
     case 'spatial': {
       const geom = feature.geometry;
       if (!geom) return false;
