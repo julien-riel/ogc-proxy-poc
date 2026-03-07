@@ -363,6 +363,9 @@ export async function getItems(req: Request, res: Response) {
     res.set('Content-Type', 'application/geo+json');
     res.json(fc);
   } catch (err) {
+    if (err instanceof UpstreamError && err.statusCode === 429) {
+      return res.status(429).json({ code: 'TooManyRequests', description: 'Upstream rate limit exceeded' });
+    }
     if (err instanceof UpstreamTimeoutError) {
       const log = logger.items();
       log.error({ err, collectionId }, 'upstream timeout');

@@ -1,6 +1,7 @@
 import type { CollectionConfig } from './types.js';
 import { getByPath } from './geojson-builder.js';
 import { buildWfsGetFeatureUrl } from '../plugins/wfs-upstream.js';
+import { getUpstreamBucket } from './upstream-rate-limit.js';
 import { logger } from '../logger.js';
 
 export interface FetchParams {
@@ -208,6 +209,11 @@ export async function fetchUpstreamItems(
   config: CollectionConfig,
   params: FetchParams,
 ): Promise<UpstreamPage> {
+  const bucket = getUpstreamBucket(config.title);
+  if (!bucket.tryConsume()) {
+    throw new UpstreamError(429);
+  }
+
   if (config.upstream.type === 'wfs') {
     return fetchWfsUpstream(config, params);
   }
