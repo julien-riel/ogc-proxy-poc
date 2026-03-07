@@ -2,6 +2,10 @@ import { XMLParser } from 'fast-xml-parser';
 import { getCollection } from '../engine/registry.js';
 import { fetchUpstreamItems } from '../engine/adapter.js';
 import { buildFeature } from '../engine/geojson-builder.js';
+import { parseFilterXml } from './filter-encoding.js';
+import { evaluateFilter } from '../engine/cql2/evaluator.js';
+import { parseCql2 } from '../engine/cql2/parser.js';
+import type { CqlNode } from '../engine/cql2/types.js';
 
 const xmlParser = new XMLParser({
   ignoreAttributes: false,
@@ -19,6 +23,7 @@ interface WfsGetFeatureParams {
   srsName: string;
   cqlFilter?: string;
   sortBy?: string;
+  filterNode?: CqlNode;
 }
 
 const R = 20037508.342789244;
@@ -67,6 +72,11 @@ function crsUrn(srs: string): string {
 }
 
 export function parseGetFeatureGet(query: Record<string, string>): WfsGetFeatureParams {
+  let filterNode: CqlNode | undefined;
+  if (query.cql_filter) {
+    filterNode = parseCql2(query.cql_filter);
+  }
+
   return {
     typeName: query.typename || query.typenames || '',
     maxFeatures: parseInt(query.maxfeatures || query.count || '10'),
@@ -76,6 +86,7 @@ export function parseGetFeatureGet(query: Record<string, string>): WfsGetFeature
     srsName: query.srsname || '',
     cqlFilter: query.cql_filter,
     sortBy: query.sortby,
+    filterNode,
   };
 }
 
@@ -85,15 +96,23 @@ export function parseGetFeaturePost(body: string): WfsGetFeatureParams {
   const query = getFeature['Query'] || {};
 
   let bbox: [number, number, number, number] | undefined;
+  let filterNode: CqlNode | undefined;
+
   const filter = query['Filter'] || {};
-  const bboxFilter = filter['BBOX'];
-  if (bboxFilter) {
-    const envelope = bboxFilter['Envelope'] || {};
-    const lower = envelope['lowerCorner']?.split(' ').map(Number);
-    const upper = envelope['upperCorner']?.split(' ').map(Number);
-    if (lower && upper) {
-      bbox = [lower[0], lower[1], upper[0], upper[1]];
+  if (Object.keys(filter).length > 0) {
+    // Try to extract a simple BBOX for upstream optimization
+    const bboxFilter = filter['BBOX'];
+    if (bboxFilter) {
+      const envelope = bboxFilter['Envelope'] || {};
+      const lower = envelope['lowerCorner']?.split(' ').map(Number);
+      const upper = envelope['upperCorner']?.split(' ').map(Number);
+      if (lower && upper) {
+        bbox = [lower[0], lower[1], upper[0], upper[1]];
+      }
     }
+    // Parse full filter to CqlNode for post-fetch evaluation
+    const node = parseFilterXml(filter);
+    if (node) filterNode = node;
   }
 
   return {
@@ -104,6 +123,7 @@ export function parseGetFeaturePost(body: string): WfsGetFeatureParams {
     resultType: getFeature['@_resultType'] || 'results',
     srsName: query['@_srsName'] || getFeature['@_srsName'] || '',
     bbox,
+    filterNode,
   };
 }
 
@@ -129,21 +149,40 @@ export async function executeGetFeature(params: WfsGetFeatureParams) {
     };
   }
 
+  // Fetch more items when filtering post-fetch to avoid under-filling
+  const fetchLimit = params.filterNode
+    ? params.maxFeatures * 10
+    : params.maxFeatures;
+
   const upstream = await fetchUpstreamItems(config, {
     offset: params.startIndex,
-    limit: params.maxFeatures,
+    limit: fetchLimit,
   });
 
-  const features = upstream.items
-    .map(item => buildFeature(item, config))
+  let features = upstream.items
+    .map(item => buildFeature(item, config));
+
+  // Apply filter post-fetch
+  if (params.filterNode) {
+    features = features.filter(f =>
+      evaluateFilter(params.filterNode!, f as unknown as import('geojson').Feature)
+    );
+  }
+
+  // Apply maxFeatures limit after filtering
+  const limited = params.filterNode
+    ? features.slice(0, params.maxFeatures)
+    : features;
+
+  const reprojected = limited
     .map(f => reprojectFeature(f as unknown as Record<string, unknown>, srs));
 
   return {
     type: 'FeatureCollection',
-    totalFeatures: upstream.total ?? features.length,
-    features,
-    numberMatched: upstream.total ?? features.length,
-    numberReturned: features.length,
+    totalFeatures: params.filterNode ? features.length : (upstream.total ?? reprojected.length),
+    features: reprojected,
+    numberMatched: params.filterNode ? features.length : (upstream.total ?? reprojected.length),
+    numberReturned: reprojected.length,
     timeStamp: new Date().toISOString(),
     crs: {
       type: 'name',
