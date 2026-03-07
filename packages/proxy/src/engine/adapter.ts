@@ -58,12 +58,27 @@ async function fetchJson(url: string, timeoutMs?: number): Promise<Record<string
 }
 
 function extractItems(body: Record<string, unknown>, config: CollectionConfig): Record<string, unknown>[] {
-  return (getByPath(body, config.upstream.responseMapping.items) as Record<string, unknown>[]) || [];
+  const raw = getByPath(body, config.upstream.responseMapping.items);
+  if (!Array.isArray(raw)) {
+    const log = logger.adapter();
+    log.warning({ path: config.upstream.responseMapping.items }, 'upstream items field is not an array');
+    return [];
+  }
+  return raw as Record<string, unknown>[];
 }
 
 function extractTotal(body: Record<string, unknown>, config: CollectionConfig): number | undefined {
   const { total } = config.upstream.responseMapping;
-  return total ? (getByPath(body, total) as number | undefined) : undefined;
+  if (!total) return undefined;
+  const value = getByPath(body, total);
+  if (typeof value !== 'number' || isNaN(value)) {
+    if (value !== undefined && value !== null) {
+      const log = logger.adapter();
+      log.warning({ path: total, value }, 'upstream total is not a valid number');
+    }
+    return undefined;
+  }
+  return value;
 }
 
 function applyExtraParams(url: URL, params: FetchParams): void {

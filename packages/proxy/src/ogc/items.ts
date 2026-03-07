@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { getCollection, getCollectionPlugin } from '../engine/registry.js';
 import { getRegistry } from '../engine/registry.js';
 import { fetchUpstreamItems, fetchUpstreamItem, UpstreamError, UpstreamTimeoutError } from '../engine/adapter.js';
-import { buildFeatureCollection, buildFeature } from '../engine/geojson-builder.js';
+import { buildFeatureCollection, buildFeature, buildFeatureSafe } from '../engine/geojson-builder.js';
 import { applyLimits } from '../engine/limits.js';
 import type { LimitsResult } from '../engine/limits.js';
 import { parseCql2, evaluateFilter, extractBboxFromAst } from '../engine/cql2/index.js';
@@ -321,7 +321,9 @@ export async function getItems(req: Request, res: Response) {
     if (plugin?.skipGeojsonBuilder) {
       features = rawItems as unknown as GeoJSON.Feature[];
     } else {
-      features = (rawItems as Record<string, unknown>[]).map(item => buildFeature(item, config));
+      features = (rawItems as Record<string, unknown>[])
+        .map(item => buildFeatureSafe(item, config))
+        .filter((f): f is GeoJSON.Feature => f !== null);
     }
 
     // Hook: transformFeatures (batch)

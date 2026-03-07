@@ -72,6 +72,14 @@ export function buildFeature(raw: Record<string, unknown>, config: CollectionCon
   };
 }
 
+export function buildFeatureSafe(raw: Record<string, unknown>, config: CollectionConfig): GeoJSON.Feature | null {
+  try {
+    return buildFeature(raw, config);
+  } catch {
+    return null;
+  }
+}
+
 interface PaginationContext {
   baseUrl: string;
   collectionId: string;

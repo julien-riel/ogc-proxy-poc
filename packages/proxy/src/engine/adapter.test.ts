@@ -152,6 +152,24 @@ describe('Adapter', () => {
     });
   });
 
+  describe('upstream validation', () => {
+    it('returns empty array when items field is not an array', async () => {
+      vi.stubGlobal('fetch', vi.fn(() =>
+        Promise.resolve({ ok: true, json: () => Promise.resolve({ data: 'not-an-array', total: 5 }) })
+      ));
+      const result = await fetchUpstreamItems(offsetLimitConfig, { offset: 0, limit: 10 });
+      expect(result.items).toEqual([]);
+    });
+
+    it('returns undefined total when total is NaN', async () => {
+      vi.stubGlobal('fetch', vi.fn(() =>
+        Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [], total: 'bad' }) })
+      ));
+      const result = await fetchUpstreamItems(offsetLimitConfig, { offset: 0, limit: 10 });
+      expect(result.total).toBeUndefined();
+    });
+  });
+
   describe('timeout', () => {
     it('throws UpstreamTimeoutError on timeout', async () => {
       vi.stubGlobal('fetch', vi.fn((_url: string, init?: RequestInit) => {

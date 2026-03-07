@@ -1,7 +1,7 @@
 import { XMLParser } from 'fast-xml-parser';
 import { getCollection } from '../engine/registry.js';
 import { fetchUpstreamItems } from '../engine/adapter.js';
-import { buildFeature } from '../engine/geojson-builder.js';
+import { buildFeature, buildFeatureSafe } from '../engine/geojson-builder.js';
 import { parseFilterXml } from './filter-encoding.js';
 import { evaluateFilter } from '../engine/cql2/evaluator.js';
 import { parseCql2 } from '../engine/cql2/parser.js';
@@ -168,7 +168,8 @@ export async function executeGetFeature(params: WfsGetFeatureParams) {
   });
 
   let features = upstream.items
-    .map(item => buildFeature(item, config));
+    .map(item => buildFeatureSafe(item, config))
+    .filter((f): f is GeoJSON.Feature => f !== null);
 
   // Apply filter post-fetch
   if (params.filterNode) {
