@@ -115,6 +115,11 @@ export function buildCapabilities20Xml(req: Request): string {
         <fes:SpatialOperator name="BBOX"/>
         <fes:SpatialOperator name="Intersects"/>
         <fes:SpatialOperator name="Within"/>
+        <fes:SpatialOperator name="Contains"/>
+        <fes:SpatialOperator name="Crosses"/>
+        <fes:SpatialOperator name="Touches"/>
+        <fes:SpatialOperator name="Disjoint"/>
+        <fes:SpatialOperator name="Equals"/>
       </fes:SpatialOperators>
     </fes:Spatial_Capabilities>
     <fes:Scalar_Capabilities>
@@ -127,6 +132,8 @@ export function buildCapabilities20Xml(req: Request): string {
         <fes:ComparisonOperator name="PropertyIsLessThanOrEqualTo"/>
         <fes:ComparisonOperator name="PropertyIsGreaterThanOrEqualTo"/>
         <fes:ComparisonOperator name="PropertyIsLike"/>
+        <fes:ComparisonOperator name="PropertyIsBetween"/>
+        <fes:ComparisonOperator name="PropertyIsNull"/>
       </fes:ComparisonOperators>
     </fes:Scalar_Capabilities>
     <fes:Id_Capabilities>
@@ -231,6 +238,11 @@ export function buildCapabilitiesXml(req: Request): string {
         <ogc:SpatialOperator name="BBOX"/>
         <ogc:SpatialOperator name="Intersects"/>
         <ogc:SpatialOperator name="Within"/>
+        <ogc:SpatialOperator name="Contains"/>
+        <ogc:SpatialOperator name="Crosses"/>
+        <ogc:SpatialOperator name="Touches"/>
+        <ogc:SpatialOperator name="Disjoint"/>
+        <ogc:SpatialOperator name="Equals"/>
       </ogc:SpatialOperators>
     </ogc:Spatial_Capabilities>
     <ogc:Scalar_Capabilities>
@@ -243,6 +255,8 @@ export function buildCapabilitiesXml(req: Request): string {
         <ogc:ComparisonOperator>LessThanEqualTo</ogc:ComparisonOperator>
         <ogc:ComparisonOperator>GreaterThanEqualTo</ogc:ComparisonOperator>
         <ogc:ComparisonOperator>Like</ogc:ComparisonOperator>
+        <ogc:ComparisonOperator>Between</ogc:ComparisonOperator>
+        <ogc:ComparisonOperator>NullCheck</ogc:ComparisonOperator>
       </ogc:ComparisonOperators>
     </ogc:Scalar_Capabilities>
     <ogc:Id_Capabilities>

@@ -99,4 +99,22 @@ describe('CQL2 Parser', () => {
       expect(ast.right.type).toBe('comparison');
     }
   });
+
+  describe('depth limit', () => {
+    it('rejects deeply nested expressions', () => {
+      let expr = 'a = 1';
+      for (let i = 0; i < 25; i++) {
+        expr = `(${expr}) AND (b = ${i})`;
+      }
+      expect(() => parseCql2(expr)).toThrow(/depth/i);
+    });
+
+    it('accepts expressions within depth limit', () => {
+      let expr = 'a = 1';
+      for (let i = 0; i < 5; i++) {
+        expr = `(${expr}) AND (b = ${i})`;
+      }
+      expect(() => parseCql2(expr)).not.toThrow();
+    });
+  });
 });

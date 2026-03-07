@@ -9,6 +9,10 @@ import type { CqlNode } from './types.js';
 export function extractBboxFromAst(node: CqlNode): [number, number, number, number] | null {
   switch (node.type) {
     case 'spatial': {
+      // Only extract bbox for operators where it serves as a valid pre-filter
+      if (!['S_INTERSECTS', 'S_WITHIN', 'S_DWITHIN'].includes(node.operator)) {
+        return null;
+      }
       if (node.operator === 'S_DWITHIN' && node.geometry.type === 'Point' && node.distance) {
         const [lon, lat] = node.geometry.coordinates;
         const distKm = node.distanceUnits === 'meters'

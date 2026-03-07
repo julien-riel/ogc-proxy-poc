@@ -1,90 +1,115 @@
-export interface UpstreamPropertyMapping {
-  param?: string;
-  operators?: string[];
-  sortParam?: string;
-  sortDesc?: string;
-}
+import { z } from 'zod';
 
-export interface PropertyConfig {
-  name: string;
-  type: string;
-  filterable?: boolean;
-  sortable?: boolean;
-  upstream?: UpstreamPropertyMapping;
-}
+// --- Zod Schemas ---
 
-export interface OffsetLimitPagination {
-  type: 'offset-limit';
-  offsetParam: string;
-  limitParam: string;
-}
+export const upstreamPropertyMappingSchema = z.object({
+  param: z.string().optional(),
+  operators: z.array(z.string()).optional(),
+  sortParam: z.string().optional(),
+  sortDesc: z.string().optional(),
+});
 
-export interface PagePagination {
-  type: 'page-pageSize';
-  pageParam: string;
-  pageSizeParam: string;
-}
+export const propertyConfigSchema = z.object({
+  name: z.string(),
+  type: z.string(),
+  filterable: z.boolean().optional(),
+  sortable: z.boolean().optional(),
+  upstream: upstreamPropertyMappingSchema.optional(),
+});
 
-export interface CursorPagination {
-  type: 'cursor';
-  cursorParam: string;
-  limitParam: string;
-  nextCursorField: string;
-}
+export const offsetLimitPaginationSchema = z.object({
+  type: z.literal('offset-limit'),
+  offsetParam: z.string(),
+  limitParam: z.string(),
+});
 
-export type PaginationConfig = OffsetLimitPagination | PagePagination | CursorPagination;
+export const pagePaginationSchema = z.object({
+  type: z.literal('page-pageSize'),
+  pageParam: z.string(),
+  pageSizeParam: z.string(),
+});
 
-export interface CollectionConfig {
-  title: string;
-  description?: string;
-  plugin?: string;
-  maxPageSize?: number;
-  maxFeatures?: number;
-  extent?: {
-    spatial: [number, number, number, number]; // [minLon, minLat, maxLon, maxLat]
-  };
-  upstream: {
-    type?: 'rest' | 'wfs';
-    baseUrl: string;
-    method: string;
-    pagination: PaginationConfig;
-    responseMapping: {
-      items: string;
-      total: string | null;
-      item: string;
-    };
-    spatialCapabilities?: string[];
-    typeName?: string;
-    version?: string;
-  };
-  geometry: {
-    type: 'Point' | 'LineString' | 'Polygon';
-    xField?: string;
-    yField?: string;
-    coordsField?: string;
-    wktField?: string;
-  };
-  idField: string;
-  properties: PropertyConfig[];
-}
+export const cursorPaginationSchema = z.object({
+  type: z.literal('cursor'),
+  cursorParam: z.string(),
+  limitParam: z.string(),
+  nextCursorField: z.string(),
+});
 
-export interface DefaultsConfig {
-  maxPageSize?: number;
-  maxFeatures?: number;
-}
+export const paginationConfigSchema = z.discriminatedUnion('type', [
+  offsetLimitPaginationSchema,
+  pagePaginationSchema,
+  cursorPaginationSchema,
+]);
 
-export interface JwtConfig {
-  enabled: boolean;
-  host: string;
-  endpoint?: string;
-}
+export const collectionConfigSchema = z.object({
+  title: z.string(),
+  description: z.string().optional(),
+  plugin: z.string().optional(),
+  maxPageSize: z.number().positive().optional(),
+  maxFeatures: z.number().positive().optional(),
+  maxPostFetchItems: z.number().positive().optional(),
+  timeout: z.number().positive().optional(),
+  extent: z.object({
+    spatial: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+  }).optional(),
+  upstream: z.object({
+    type: z.enum(['rest', 'wfs']).optional(),
+    baseUrl: z.string().url(),
+    method: z.string(),
+    pagination: paginationConfigSchema,
+    responseMapping: z.object({
+      items: z.string(),
+      total: z.string().nullable(),
+      item: z.string(),
+    }),
+    spatialCapabilities: z.array(z.string()).optional(),
+    typeName: z.string().optional(),
+    version: z.string().optional(),
+  }),
+  geometry: z.object({
+    type: z.enum(['Point', 'LineString', 'Polygon']),
+    xField: z.string().optional(),
+    yField: z.string().optional(),
+    coordsField: z.string().optional(),
+    wktField: z.string().optional(),
+  }),
+  idField: z.string(),
+  properties: z.array(propertyConfigSchema),
+});
 
-export interface SecurityConfig {
-  jwt?: JwtConfig;
-}
+export const defaultsConfigSchema = z.object({
+  maxPageSize: z.number().positive().optional(),
+  maxFeatures: z.number().positive().optional(),
+  maxPostFetchItems: z.number().positive().optional(),
+});
 
-export interface RegistryConfig {
-  defaults?: DefaultsConfig;
-  security?: SecurityConfig;
-  collections: Record<string, CollectionConfig>;
-}
+export const jwtConfigSchema = z.object({
+  enabled: z.boolean(),
+  host: z.string(),
+  endpoint: z.string().optional(),
+});
+
+export const securityConfigSchema = z.object({
+  jwt: jwtConfigSchema.optional(),
+});
+
+export const registryConfigSchema = z.object({
+  defaults: defaultsConfigSchema.optional(),
+  security: securityConfigSchema.optional(),
+  collections: z.record(z.string(), collectionConfigSchema),
+});
+
+// --- Inferred Types ---
+
+export type UpstreamPropertyMapping = z.infer<typeof upstreamPropertyMappingSchema>;
+export type PropertyConfig = z.infer<typeof propertyConfigSchema>;
+export type OffsetLimitPagination = z.infer<typeof offsetLimitPaginationSchema>;
+export type PagePagination = z.infer<typeof pagePaginationSchema>;
+export type CursorPagination = z.infer<typeof cursorPaginationSchema>;
+export type PaginationConfig = z.infer<typeof paginationConfigSchema>;
+export type CollectionConfig = z.infer<typeof collectionConfigSchema>;
+export type DefaultsConfig = z.infer<typeof defaultsConfigSchema>;
+export type JwtConfig = z.infer<typeof jwtConfigSchema>;
+export type SecurityConfig = z.infer<typeof securityConfigSchema>;
+export type RegistryConfig = z.infer<typeof registryConfigSchema>;

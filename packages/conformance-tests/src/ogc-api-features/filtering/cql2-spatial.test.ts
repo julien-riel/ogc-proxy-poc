@@ -70,6 +70,48 @@ describe('CQL2 Spatial filters', () => {
     }
   });
 
+  it('S_CONTAINS filters polygons containing a point', async () => {
+    // Ville-Marie polygon is POLYGON((-73.59 45.49,-73.55 45.49,-73.55 45.52,-73.59 45.52,-73.59 45.49))
+    // Point (-73.5673, 45.5017) is borne #1 which is inside Ville-Marie
+    const { body } = await fetchGeoJson(
+      cql2Url(
+        'arrondissements',
+        'S_CONTAINS(geometry,POINT(-73.5673 45.5017))'
+      )
+    );
+    expect(body.features.length).toBeGreaterThan(0);
+    for (const f of body.features) {
+      expect(f.properties.nom).toBe('Ville-Marie');
+    }
+  });
+
+  it('S_DISJOINT filters features not intersecting geometry', async () => {
+    // Verdun polygon is POLYGON((-73.58 45.45,-73.55 45.45,-73.55 45.47,-73.58 45.47,-73.58 45.45))
+    // All arrondissements except Verdun should be disjoint from this exact polygon
+    const { body } = await fetchGeoJson(
+      cql2Url(
+        'arrondissements',
+        'S_DISJOINT(geometry,POLYGON((-73.58 45.45,-73.55 45.45,-73.55 45.47,-73.58 45.47,-73.58 45.45)))'
+      )
+    );
+    expect(body.features.length).toBeGreaterThan(0);
+    for (const f of body.features) {
+      expect(f.properties.nom).not.toBe('Verdun');
+    }
+  });
+
+  it('S_EQUALS filters features with equal geometry', async () => {
+    // Search for polygon exactly matching Verdun
+    const { body } = await fetchGeoJson(
+      cql2Url(
+        'arrondissements',
+        'S_EQUALS(geometry,POLYGON((-73.58 45.45,-73.55 45.45,-73.55 45.47,-73.58 45.47,-73.58 45.45)))'
+      )
+    );
+    expect(body.features.length).toBe(1);
+    expect(body.features[0].properties.nom).toBe('Verdun');
+  });
+
   it('combines spatial filter with attribute filter via AND', async () => {
     const { body } = await fetchGeoJson(
       cql2Url(

@@ -1,6 +1,7 @@
 import type { CollectionConfig } from './types.js';
 import { getByPath } from './geojson-builder.js';
 import { buildWfsGetFeatureUrl } from '../plugins/wfs-upstream.js';
+import { logger } from '../logger.js';
 
 export interface FetchParams {
   offset: number;
@@ -20,21 +21,64 @@ export class UpstreamError extends Error {
   }
 }
 
-async function fetchJson(url: string): Promise<Record<string, unknown>> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new UpstreamError(response.status);
+export class UpstreamTimeoutError extends Error {
+  constructor(public readonly url: string, public readonly timeoutMs: number) {
+    super(`Upstream timeout after ${timeoutMs}ms`);
   }
-  return response.json() as Promise<Record<string, unknown>>;
+}
+
+const DEFAULT_TIMEOUT_MS = 15_000;
+
+async function fetchJson(url: string, timeoutMs?: number): Promise<Record<string, unknown>> {
+  const log = logger.adapter();
+  const start = Date.now();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs ?? DEFAULT_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    const durationMs = Date.now() - start;
+    log.info({ url, status: response.status, durationMs }, `upstream ${response.status} in ${durationMs}ms`);
+    if (!response.ok) {
+      throw new UpstreamError(response.status);
+    }
+    return response.json() as Promise<Record<string, unknown>>;
+  } catch (err) {
+    if (err instanceof UpstreamError) throw err;
+    const durationMs = Date.now() - start;
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      log.error({ url, durationMs, timeoutMs: timeoutMs ?? DEFAULT_TIMEOUT_MS }, 'upstream timeout');
+      throw new UpstreamTimeoutError(url, timeoutMs ?? DEFAULT_TIMEOUT_MS);
+    }
+    log.error({ url, durationMs, err }, 'upstream fetch failed');
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function extractItems(body: Record<string, unknown>, config: CollectionConfig): Record<string, unknown>[] {
-  return (getByPath(body, config.upstream.responseMapping.items) as Record<string, unknown>[]) || [];
+  const raw = getByPath(body, config.upstream.responseMapping.items);
+  if (!Array.isArray(raw)) {
+    const log = logger.adapter();
+    log.warning({ path: config.upstream.responseMapping.items }, 'upstream items field is not an array');
+    return [];
+  }
+  return raw as Record<string, unknown>[];
 }
 
 function extractTotal(body: Record<string, unknown>, config: CollectionConfig): number | undefined {
   const { total } = config.upstream.responseMapping;
-  return total ? (getByPath(body, total) as number | undefined) : undefined;
+  if (!total) return undefined;
+  const value = getByPath(body, total);
+  if (typeof value !== 'number' || isNaN(value)) {
+    if (value !== undefined && value !== null) {
+      const log = logger.adapter();
+      log.warning({ path: total, value }, 'upstream total is not a valid number');
+    }
+    return undefined;
+  }
+  return value;
 }
 
 function applyExtraParams(url: URL, params: FetchParams): void {
@@ -55,7 +99,7 @@ async function fetchOffsetLimit(config: CollectionConfig, params: FetchParams): 
   url.searchParams.set(pagination.limitParam, String(params.limit));
   applyExtraParams(url, params);
 
-  const body = await fetchJson(url.toString());
+  const body = await fetchJson(url.toString(), config.timeout);
   return { items: extractItems(body, config), total: extractTotal(body, config) };
 }
 
@@ -68,7 +112,7 @@ async function fetchPageBased(config: CollectionConfig, params: FetchParams): Pr
   url.searchParams.set(pagination.pageSizeParam, String(params.limit));
   applyExtraParams(url, params);
 
-  const body = await fetchJson(url.toString());
+  const body = await fetchJson(url.toString(), config.timeout);
   return { items: extractItems(body, config), total: extractTotal(body, config) };
 }
 
@@ -90,7 +134,7 @@ async function fetchCursorBased(config: CollectionConfig, params: FetchParams): 
     }
     applyExtraParams(url, params);
 
-    const body = await fetchJson(url.toString());
+    const body = await fetchJson(url.toString(), config.timeout);
     const items = extractItems(body, config);
     collected.push(...items);
 
@@ -106,6 +150,7 @@ async function fetchCursorBased(config: CollectionConfig, params: FetchParams): 
 }
 
 async function fetchWfsUpstream(config: CollectionConfig, params: FetchParams): Promise<UpstreamPage> {
+  const log = logger.adapter();
   const url = buildWfsGetFeatureUrl(
     config.upstream.baseUrl,
     config.upstream.typeName!,
@@ -117,15 +162,35 @@ async function fetchWfsUpstream(config: CollectionConfig, params: FetchParams): 
     },
   );
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new UpstreamError(response.status);
-  }
-  const body = await response.json() as Record<string, unknown>;
-  const features = (body.features ?? []) as Record<string, unknown>[];
-  const total = body.totalFeatures as number | undefined;
+  const start = Date.now();
+  const timeoutMs = config.timeout ?? DEFAULT_TIMEOUT_MS;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  return { items: features, total };
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    const durationMs = Date.now() - start;
+    log.info({ url, status: response.status, durationMs }, `upstream WFS ${response.status} in ${durationMs}ms`);
+    if (!response.ok) {
+      throw new UpstreamError(response.status);
+    }
+    const body = await response.json() as Record<string, unknown>;
+    const features = (body.features ?? []) as Record<string, unknown>[];
+    const total = body.totalFeatures as number | undefined;
+
+    return { items: features, total };
+  } catch (err) {
+    if (err instanceof UpstreamError) throw err;
+    const durationMs = Date.now() - start;
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      log.error({ url, durationMs, timeoutMs }, 'upstream WFS timeout');
+      throw new UpstreamTimeoutError(url, timeoutMs);
+    }
+    log.error({ url, durationMs, err }, 'upstream WFS fetch failed');
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function fetchUpstreamItems(
@@ -153,6 +218,6 @@ export async function fetchUpstreamItem(
   itemId: string,
 ): Promise<Record<string, unknown>> {
   const url = `${config.upstream.baseUrl}/${itemId}`;
-  const body = await fetchJson(url);
+  const body = await fetchJson(url, config.timeout);
   return getByPath(body, config.upstream.responseMapping.item) as Record<string, unknown>;
 }

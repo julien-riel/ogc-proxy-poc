@@ -2,6 +2,7 @@ import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { parse } from 'yaml';
+import { registryConfigSchema } from './types.js';
 import type { RegistryConfig, CollectionConfig } from './types.js';
 import { loadPlugin, type CollectionPlugin } from './plugin.js';
 
@@ -28,7 +29,8 @@ export function loadRegistry(configPath?: string): RegistryConfig {
   const path = configPath || resolve(__dirname, '../config/collections.yaml');
   const raw = readFileSync(path, 'utf-8');
   const parsed = parse(raw);
-  registry = substituteEnvVars(parsed) as RegistryConfig;
+  const substituted = substituteEnvVars(parsed);
+  registry = registryConfigSchema.parse(substituted);
   return registry;
 }
 

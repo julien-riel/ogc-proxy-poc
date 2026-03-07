@@ -3,7 +3,10 @@ export type CqlNode =
   | CqlLogical
   | CqlSpatial
   | CqlLike
-  | CqlNot;
+  | CqlNot
+  | CqlIn
+  | CqlBetween
+  | CqlIsNull;
 
 export interface CqlComparison {
   type: 'comparison';
@@ -30,9 +33,28 @@ export interface CqlNot {
   operand: CqlNode;
 }
 
+export interface CqlIn {
+  type: 'in';
+  property: string;
+  values: (string | number)[];
+}
+
+export interface CqlBetween {
+  type: 'between';
+  property: string;
+  low: string | number;
+  high: string | number;
+}
+
+export interface CqlIsNull {
+  type: 'isNull';
+  property: string;
+  negated: boolean;
+}
+
 export interface CqlSpatial {
   type: 'spatial';
-  operator: 'S_INTERSECTS' | 'S_WITHIN' | 'S_DWITHIN';
+  operator: 'S_INTERSECTS' | 'S_WITHIN' | 'S_DWITHIN' | 'S_CONTAINS' | 'S_CROSSES' | 'S_TOUCHES' | 'S_DISJOINT' | 'S_EQUALS';
   property: string;
   geometry: GeoJSON.Geometry;
   distance?: number;

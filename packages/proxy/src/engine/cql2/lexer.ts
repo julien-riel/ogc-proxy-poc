@@ -1,8 +1,9 @@
 import type { Token } from './types.js';
 
 const KEYWORDS = new Set([
-  'AND', 'OR', 'NOT', 'LIKE',
+  'AND', 'OR', 'NOT', 'LIKE', 'IN', 'BETWEEN', 'IS', 'NULL',
   'S_INTERSECTS', 'S_WITHIN', 'S_DWITHIN',
+  'S_CONTAINS', 'S_CROSSES', 'S_TOUCHES', 'S_DISJOINT', 'S_EQUALS',
   'POINT', 'LINESTRING', 'POLYGON',
 ]);
 

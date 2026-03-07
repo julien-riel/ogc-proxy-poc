@@ -1,8 +1,8 @@
 import type { Request, Response } from 'express';
 import { getCollection, getCollectionPlugin } from '../engine/registry.js';
 import { getRegistry } from '../engine/registry.js';
-import { fetchUpstreamItems, fetchUpstreamItem, UpstreamError } from '../engine/adapter.js';
-import { buildFeatureCollection, buildFeature } from '../engine/geojson-builder.js';
+import { fetchUpstreamItems, fetchUpstreamItem, UpstreamError, UpstreamTimeoutError } from '../engine/adapter.js';
+import { buildFeatureCollection, buildFeature, buildFeatureSafe } from '../engine/geojson-builder.js';
 import { applyLimits } from '../engine/limits.js';
 import type { LimitsResult } from '../engine/limits.js';
 import { parseCql2, evaluateFilter, extractBboxFromAst } from '../engine/cql2/index.js';
@@ -11,6 +11,7 @@ import type { CqlNode } from '../engine/cql2/types.js';
 import type { PropertyConfig } from '../engine/types.js';
 import { parseSortby, validateSortable, buildUpstreamSort } from '../engine/sorting.js';
 import { getBaseUrl } from '../utils/base-url.js';
+import { logger } from '../logger.js';
 
 function parseBbox(bboxStr: string): [number, number, number, number] | undefined {
   const parts = bboxStr.split(',').map(Number);
@@ -157,6 +158,19 @@ function parseItemsRequest(
     };
   }
 
+  const MAX_FILTER_LENGTH = 4096;
+  if (filterStr && filterStr.length > MAX_FILTER_LENGTH) {
+    return {
+      error: {
+        status: 400,
+        body: {
+          code: 'InvalidFilter',
+          description: `Filter exceeds maximum length of ${MAX_FILTER_LENGTH} characters`,
+        },
+      },
+    };
+  }
+
   let cqlAst: CqlNode | null = null;
   if (filterStr) {
     try {
@@ -265,6 +279,15 @@ export async function getItems(req: Request, res: Response) {
 
   const { limit, offset, bbox, cqlAst, filterStr, upstreamParams, postFetchSimpleAst, queryParams, limits } = parsed;
 
+  // Cap post-fetch multiplier
+  const registry = getRegistry();
+  const DEFAULT_MAX_POST_FETCH_ITEMS = 5000;
+  const maxPostFetch = config.maxPostFetchItems ?? registry.defaults?.maxPostFetchItems ?? DEFAULT_MAX_POST_FETCH_ITEMS;
+  const needsPostFetch = !!(cqlAst || postFetchSimpleAst);
+  const fetchLimit = needsPostFetch
+    ? Math.min(limit * 10, maxPostFetch)
+    : limit;
+
   // Load plugin
   const plugin = await getCollectionPlugin(collectionId);
 
@@ -285,7 +308,7 @@ export async function getItems(req: Request, res: Response) {
     // Fetch upstream
     const upstream = await fetchUpstreamItems(config, {
       offset: ogcReq.offset,
-      limit: ogcReq.limit,
+      limit: fetchLimit,
       bbox: ogcReq.bbox,
       upstreamParams,
     });
@@ -298,7 +321,9 @@ export async function getItems(req: Request, res: Response) {
     if (plugin?.skipGeojsonBuilder) {
       features = rawItems as unknown as GeoJSON.Feature[];
     } else {
-      features = (rawItems as Record<string, unknown>[]).map(item => buildFeature(item, config));
+      features = (rawItems as Record<string, unknown>[])
+        .map(item => buildFeatureSafe(item, config))
+        .filter((f): f is GeoJSON.Feature => f !== null);
     }
 
     // Hook: transformFeatures (batch)
@@ -313,6 +338,10 @@ export async function getItems(req: Request, res: Response) {
 
     // Apply post-fetch filters
     features = applyPostFilters(features, bbox, cqlAst, postFetchSimpleAst, config.upstream.type === 'wfs');
+
+    if (needsPostFetch && features.length < limit) {
+      res.set('OGC-Warning', 'Post-fetch filter may have limited results');
+    }
 
     // Build response
     let fc = buildFeatureCollection(
@@ -334,8 +363,14 @@ export async function getItems(req: Request, res: Response) {
     res.set('Content-Type', 'application/geo+json');
     res.json(fc);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    res.status(502).json({ code: 'UpstreamError', description: message });
+    if (err instanceof UpstreamTimeoutError) {
+      const log = logger.items();
+      log.error({ err, collectionId }, 'upstream timeout');
+      return res.status(504).json({ code: 'GatewayTimeout', description: 'Upstream request timed out' });
+    }
+    const log = logger.items();
+    log.error({ err, collectionId, query: req.query }, 'getItems failed');
+    res.status(502).json({ code: 'UpstreamError', description: 'An upstream error occurred' });
   }
 }
 
@@ -381,7 +416,13 @@ export async function getItem(req: Request, res: Response) {
     if (err instanceof UpstreamError && err.statusCode === 404) {
       return res.status(404).json({ code: 'NotFound', description: `Feature '${featureId}' not found` });
     }
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    res.status(502).json({ code: 'UpstreamError', description: message });
+    if (err instanceof UpstreamTimeoutError) {
+      const log = logger.items();
+      log.error({ err, collectionId }, 'upstream timeout');
+      return res.status(504).json({ code: 'GatewayTimeout', description: 'Upstream request timed out' });
+    }
+    const log = logger.items();
+    log.error({ err, collectionId, featureId }, 'getItem failed');
+    res.status(502).json({ code: 'UpstreamError', description: 'An upstream error occurred' });
   }
 }

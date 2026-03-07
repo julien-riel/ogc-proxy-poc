@@ -3,6 +3,8 @@ import express from 'express';
 import { buildCapabilitiesXml, buildCapabilities20Xml } from './capabilities.js';
 import { buildDescribeFeatureType } from './describe.js';
 import { parseGetFeatureGet, parseGetFeaturePost, executeGetFeature } from './get-feature.js';
+import { logger } from '../logger.js';
+import { UpstreamTimeoutError } from '../engine/adapter.js';
 
 function normalizeQuery(query: Record<string, unknown>): Record<string, string> {
   const normalized: Record<string, string> = {};
@@ -15,7 +17,7 @@ function normalizeQuery(query: Record<string, unknown>): Record<string, string> 
 export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
   const router = Router();
 
-  router.use(express.text({ type: ['application/xml', 'text/xml'] }));
+  router.use(express.text({ type: ['application/xml', 'text/xml'], limit: '100kb' }));
 
   router.get('/', (req, res, next) => {
     const query = normalizeQuery(req.query as Record<string, unknown>);
@@ -37,7 +39,7 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
         case 'describefeaturetype': {
           const typeName = query.typename || query.typenames || '';
           const result = buildDescribeFeatureType(typeName);
-          if (!result) return res.status(404).json({ error: `Type '${typeName}' not found` });
+          if (!result) return res.status(404).json({ error: 'Requested type not found' });
           return res.json(result);
         }
 
@@ -45,16 +47,22 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
           try {
             const params = parseGetFeatureGet(query);
             const result = await executeGetFeature(params);
-            if (!result) return res.status(404).json({ error: `Type '${params.typeName}' not found` });
+            if (!result) return res.status(404).json({ error: 'Requested type not found' });
             return res.json(result);
           } catch (err) {
-            const message = err instanceof Error ? err.message : 'Unknown error';
-            return res.status(502).json({ error: message });
+            if (err instanceof UpstreamTimeoutError) {
+              const log = logger.wfs();
+              log.error({ err }, 'WFS upstream timeout');
+              return res.status(504).json({ error: 'Upstream request timed out' });
+            }
+            const log = logger.wfs();
+            log.error({ err, query }, 'WFS GetFeature failed');
+            return res.status(502).json({ error: 'An upstream error occurred' });
           }
         }
 
         default:
-          return res.status(400).json({ error: `Unknown request: ${request}` });
+          return res.status(400).json({ error: 'Unknown or missing WFS request parameter' });
       }
     });
   });
@@ -66,11 +74,17 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
     try {
       const params = parseGetFeaturePost(body);
       const result = await executeGetFeature(params);
-      if (!result) return res.status(404).json({ error: `Type '${params.typeName}' not found` });
+      if (!result) return res.status(404).json({ error: 'Requested type not found' });
       return res.json(result);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      return res.status(502).json({ error: message });
+      if (err instanceof UpstreamTimeoutError) {
+        const log = logger.wfs();
+        log.error({ err }, 'WFS upstream timeout');
+        return res.status(504).json({ error: 'Upstream request timed out' });
+      }
+      const log = logger.wfs();
+      log.error({ err }, 'WFS GetFeature POST failed');
+      return res.status(502).json({ error: 'An upstream error occurred' });
     }
   });
 

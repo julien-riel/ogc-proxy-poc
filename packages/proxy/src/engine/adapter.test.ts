@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fetchUpstreamItems, fetchUpstreamItem } from './adapter.js';
 import type { CollectionConfig } from './types.js';
+import { initLogging } from '../logger.js';
 
 const offsetLimitConfig: CollectionConfig = {
   title: 'Test Offset/Limit',
@@ -41,6 +42,8 @@ const cursorConfig: CollectionConfig = {
   properties: [{ name: 'nom', type: 'string' }],
 };
 
+initLogging();
+
 describe('Adapter', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -55,8 +58,8 @@ describe('Adapter', () => {
 
       const result = await fetchUpstreamItems(offsetLimitConfig, { offset: 5, limit: 3 });
 
-      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('offset=5'));
-      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('limit=3'));
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('offset=5'), expect.any(Object));
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('limit=3'), expect.any(Object));
       expect(result.items).toEqual([{ id: 1 }]);
       expect(result.total).toBe(10);
     });
@@ -72,8 +75,8 @@ describe('Adapter', () => {
       // offset=6, limit=3 → page=3, pageSize=3
       const result = await fetchUpstreamItems(pageConfig, { offset: 6, limit: 3 });
 
-      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('page=3'));
-      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('pageSize=3'));
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('page=3'), expect.any(Object));
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('pageSize=3'), expect.any(Object));
       expect(result.items).toEqual([{ id: 1 }]);
       expect(result.total).toBe(8);
     });
@@ -85,7 +88,7 @@ describe('Adapter', () => {
       }));
 
       await fetchUpstreamItems(pageConfig, { offset: 0, limit: 5 });
-      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('page=1'));
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('page=1'), expect.any(Object));
     });
   });
 
@@ -133,7 +136,7 @@ describe('Adapter', () => {
       }));
 
       const result = await fetchUpstreamItem(offsetLimitConfig, '1');
-      expect(fetch).toHaveBeenCalledWith('http://mock:3001/api/test/1');
+      expect(fetch).toHaveBeenCalledWith('http://mock:3001/api/test/1', expect.any(Object));
       expect(result).toEqual({ id: 1, name: 'A' });
     });
   });
@@ -146,6 +149,42 @@ describe('Adapter', () => {
 
       await expect(fetchUpstreamItems(offsetLimitConfig, { offset: 0, limit: 10 }))
         .rejects.toThrow('Upstream error: 500');
+    });
+  });
+
+  describe('upstream validation', () => {
+    it('returns empty array when items field is not an array', async () => {
+      vi.stubGlobal('fetch', vi.fn(() =>
+        Promise.resolve({ ok: true, json: () => Promise.resolve({ data: 'not-an-array', total: 5 }) })
+      ));
+      const result = await fetchUpstreamItems(offsetLimitConfig, { offset: 0, limit: 10 });
+      expect(result.items).toEqual([]);
+    });
+
+    it('returns undefined total when total is NaN', async () => {
+      vi.stubGlobal('fetch', vi.fn(() =>
+        Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [], total: 'bad' }) })
+      ));
+      const result = await fetchUpstreamItems(offsetLimitConfig, { offset: 0, limit: 10 });
+      expect(result.total).toBeUndefined();
+    });
+  });
+
+  describe('timeout', () => {
+    it('throws UpstreamTimeoutError on timeout', async () => {
+      vi.stubGlobal('fetch', vi.fn((_url: string, init?: RequestInit) => {
+        return new Promise((_resolve, reject) => {
+          const onAbort = () => reject(new DOMException('The operation was aborted', 'AbortError'));
+          if (init?.signal?.aborted) {
+            onAbort();
+          } else {
+            init?.signal?.addEventListener('abort', onAbort);
+          }
+        });
+      }));
+      const configWithTimeout = { ...offsetLimitConfig, timeout: 50 };
+      await expect(fetchUpstreamItems(configWithTimeout, { offset: 0, limit: 10 }))
+        .rejects.toThrow('Upstream timeout');
     });
   });
 });
