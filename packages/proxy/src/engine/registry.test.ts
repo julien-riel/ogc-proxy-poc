@@ -54,4 +54,11 @@ describe('Registry', () => {
     const plugin = await getCollectionPlugin('bornes-fontaines');
     expect(plugin).toBeNull();
   });
+
+  it('should parse security config from YAML', () => {
+    const config = loadRegistry(resolve(__dirname, '../config/collections.yaml'));
+    expect(config.security).toBeDefined();
+    expect(config.security?.jwt).toBeDefined();
+    expect(config.security?.jwt?.enabled).toBe(false);
+  });
 });

@@ -1,3 +1,9 @@
+security:
+  jwt:
+    enabled: false
+    host: "${JWT_HOST}"
+    endpoint: "${JWT_ENDPOINT}"
+
 defaults:
   maxPageSize: 1000
   maxFeatures: 10000

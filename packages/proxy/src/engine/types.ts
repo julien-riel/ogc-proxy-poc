@@ -73,7 +73,18 @@ export interface DefaultsConfig {
   maxFeatures?: number;
 }
 
+export interface JwtConfig {
+  enabled: boolean;
+  host: string;
+  endpoint?: string;
+}
+
+export interface SecurityConfig {
+  jwt?: JwtConfig;
+}
+
 export interface RegistryConfig {
   defaults?: DefaultsConfig;
+  security?: SecurityConfig;
   collections: Record<string, CollectionConfig>;
 }
