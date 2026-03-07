@@ -17,7 +17,7 @@ function normalizeQuery(query: Record<string, unknown>): Record<string, string> 
 export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
   const router = Router();
 
-  router.use(express.text({ type: ['application/xml', 'text/xml'] }));
+  router.use(express.text({ type: ['application/xml', 'text/xml'], limit: '100kb' }));
 
   router.get('/', (req, res, next) => {
     const query = normalizeQuery(req.query as Record<string, unknown>);

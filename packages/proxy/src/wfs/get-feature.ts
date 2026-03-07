@@ -11,6 +11,7 @@ const xmlParser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: '@_',
   removeNSPrefix: true,
+  processEntities: false,
 });
 
 interface WfsGetFeatureParams {
@@ -72,6 +73,11 @@ function crsUrn(srs: string): string {
 }
 
 export function parseGetFeatureGet(query: Record<string, string>): WfsGetFeatureParams {
+  const MAX_FILTER_LENGTH = 4096;
+  if (query.cql_filter && query.cql_filter.length > MAX_FILTER_LENGTH) {
+    throw new Error(`CQL filter exceeds maximum length of ${MAX_FILTER_LENGTH} characters`);
+  }
+
   let filterNode: CqlNode | undefined;
   if (query.cql_filter) {
     filterNode = parseCql2(query.cql_filter);

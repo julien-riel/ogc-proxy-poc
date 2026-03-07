@@ -16,6 +16,7 @@ export async function createApp() {
 
   const app = express();
   app.use(cors());
+  app.use(express.json({ limit: '100kb' }));
   app.use(createCorrelationIdMiddleware());
   app.use((req, res, next) => {
     const start = Date.now();

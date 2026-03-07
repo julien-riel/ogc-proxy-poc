@@ -158,6 +158,19 @@ function parseItemsRequest(
     };
   }
 
+  const MAX_FILTER_LENGTH = 4096;
+  if (filterStr && filterStr.length > MAX_FILTER_LENGTH) {
+    return {
+      error: {
+        status: 400,
+        body: {
+          code: 'InvalidFilter',
+          description: `Filter exceeds maximum length of ${MAX_FILTER_LENGTH} characters`,
+        },
+      },
+    };
+  }
+
   let cqlAst: CqlNode | null = null;
   if (filterStr) {
     try {

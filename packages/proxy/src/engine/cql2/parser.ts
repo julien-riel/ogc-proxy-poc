@@ -4,6 +4,8 @@ import type { Token, CqlNode, CqlSpatial } from './types.js';
 class Parser {
   private tokens: Token[];
   private pos = 0;
+  private depth = 0;
+  private static readonly MAX_DEPTH = 20;
 
   constructor(tokens: Token[]) {
     this.tokens = tokens;
@@ -68,9 +70,14 @@ class Parser {
 
     // Parenthesized expression
     if (token.type === 'LPAREN') {
+      this.depth++;
+      if (this.depth > Parser.MAX_DEPTH) {
+        throw new Error(`Filter depth exceeds maximum of ${Parser.MAX_DEPTH}`);
+      }
       this.advance();
       const node = this.parseOr();
       this.expect('RPAREN');
+      this.depth--;
       return node;
     }
 
