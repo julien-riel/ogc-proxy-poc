@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { createOgcRouter } from './ogc/router.js';
 import { createWfsRouter } from './wfs/router.js';
 import { loadRegistry, getRegistry } from './engine/registry.js';
@@ -17,6 +18,16 @@ export async function createApp() {
   const app = express();
   app.use(cors());
   app.use(express.json({ limit: '100kb' }));
+
+  const limiter = rateLimit({
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000'),
+    max: parseInt(process.env.RATE_LIMIT_MAX || '100'),
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { code: 'TooManyRequests', description: 'Rate limit exceeded' },
+  });
+  app.use(limiter);
+
   app.use(createCorrelationIdMiddleware());
   app.use((req, res, next) => {
     const start = Date.now();
