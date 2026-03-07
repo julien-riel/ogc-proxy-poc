@@ -1,90 +1,88 @@
 # OGC Proxy POC
 
-Proxy qui expose des APIs REST internes en **OGC API Features** et **WFS 1.1.0**, compatible QGIS et MapStore.
+Proxy that exposes heterogeneous internal REST APIs as OGC API Features and WFS services. Enables consumption by QGIS, MapStore, and web applications (Angular, React) without custom integration per API.
 
-## Prerequis
+See [PRD](prd.md) for the full product vision and roadmap.
 
-- Node.js 20+
-- Docker et Docker Compose (pour MapStore)
+## Quick Start
 
-## Demarrage rapide
-
-### Mode local (sans Docker)
+### Local development
 
 ```bash
 npm install
-UPSTREAM_HOST=http://localhost:3001 npm run dev
+npm run dev
 ```
 
-Le mock API demarre sur `http://localhost:3001` et le proxy sur `http://localhost:3000`.
+This starts:
+- **Mock API** on `http://localhost:3001` — simulates 3 municipal REST APIs
+- **Proxy** on `http://localhost:3000` — exposes OGC API Features (`/ogc/*`) and WFS (`/wfs`)
 
-Tester :
-```bash
-# OGC API Features
-curl http://localhost:3000/ogc/collections
+The proxy requires the `UPSTREAM_HOST` environment variable. In dev mode it defaults to `http://localhost:3001`.
 
-# WFS 1.1.0
-curl 'http://localhost:3000/wfs?service=WFS&request=GetCapabilities'
-```
-
-### Mode Docker (avec MapStore)
+### Docker Compose
 
 ```bash
-docker compose up --build
+npm run build
+docker compose up
 ```
 
-Tout est accessible via le gateway nginx sur `http://localhost:8080` :
+Starts mock-api, proxy, and MapStore (`http://localhost:8080`).
 
-| Service | URL |
-|---------|-----|
-| MapStore | http://localhost:8080/mapstore/ |
-| WFS | http://localhost:8080/wfs?service=WFS&request=GetCapabilities |
-| OGC API Features | http://localhost:8080/ogc/collections |
-
-## Connecter QGIS
-
-1. Menu **Couche** > **Ajouter une couche** > **Ajouter une couche WFS / OGC API Features**
-2. Creer une connexion avec l'URL `http://localhost:3000/ogc`
-3. Les 3 collections apparaissent : bornes-fontaines, pistes-cyclables, arrondissements
-
-Voir [docs/qgis-setup.md](docs/qgis-setup.md) pour le guide complet.
-
-## Connecter MapStore
-
-1. Ouvrir `http://localhost:8080/mapstore/` (admin/admin)
-2. Creer une carte, ouvrir le catalogue
-3. Ajouter un service WFS avec l'URL `http://localhost:8080/wfs`
-
-Voir [docs/mapstore-setup.md](docs/mapstore-setup.md) pour le guide complet.
-
-## Tests
+## Testing
 
 ```bash
-# Tous les tests (unit + conformance)
-npm test
-
-# Unit seulement
-npm run test:unit
-
-# Conformance seulement
-npm run test:conformance
+npm test              # unit + conformance tests
+npm run test:unit     # unit tests only (proxy engine)
+npm run test:conformance  # end-to-end conformance tests
 ```
 
-## Architecture
+## Collections
+
+The proxy serves 4 collections configured in `packages/proxy/src/config/collections.yaml`:
+
+| Collection | Source | Geometry | Pagination |
+|---|---|---|---|
+| bornes-fontaines | Mock API | Point | offset/limit |
+| pistes-cyclables | Mock API | LineString | page/pageSize |
+| arrondissements | Mock API | Polygon | cursor |
+| mrc-quebec | PAVICS Ouranos WFS | Polygon | WFS native |
+
+## Project Structure
 
 ```
 packages/
-  mock-api/        # 3 APIs REST simulees (bornes-fontaines, pistes-cyclables, arrondissements)
-  proxy/           # Proxy OGC (API Features + WFS 1.1.0)
-  conformance-tests/  # Tests de conformance OGC
+  proxy/          # OGC proxy server (core)
+  mock-api/       # Simulated municipal REST APIs
+  conformance-tests/  # OGC API Features conformance tests
+docs/
+  qgis-setup.md       # QGIS connection guide
+  mapstore-setup.md   # MapStore connection guide
+  testing-filters-sorting-pagination.md  # curl test recipes
 ```
 
-Le proxy lit un registre YAML (`packages/proxy/src/config/collections.yaml`) qui mappe chaque collection vers une API upstream. Il supporte la pagination (offset/limit, page/pageSize, cursor) et la reprojection CRS84/EPSG:3857.
+## Endpoints
 
-## Collections disponibles
+### OGC API Features (`/ogc`)
 
-| Collection | Geometrie | Source |
-|-----------|-----------|--------|
-| bornes-fontaines | Point | API paginee offset/limit |
-| pistes-cyclables | LineString | API paginee page/pageSize |
-| arrondissements | Polygon (WKT) | API paginee cursor |
+- `GET /ogc/` — Landing page
+- `GET /ogc/conformance` — Conformance classes
+- `GET /ogc/collections` — List collections
+- `GET /ogc/collections/{id}` — Collection detail
+- `GET /ogc/collections/{id}/queryables` — Filterable properties (Part 3)
+- `GET /ogc/collections/{id}/items` — Features (GeoJSON)
+- `GET /ogc/collections/{id}/items/{fid}` — Single feature
+
+Supports: `limit`, `offset`, `bbox`, `filter` (CQL2), `sortby`, simple query string filters.
+
+### WFS (`/wfs`)
+
+- `GetCapabilities` — XML capabilities document
+- `DescribeFeatureType` — JSON schema per type
+- `GetFeature` — GeoJSON features (GET and POST)
+
+## Documentation
+
+- [PRD](prd.md) — Product requirements
+- [QGIS Setup](docs/qgis-setup.md)
+- [MapStore Setup](docs/mapstore-setup.md)
+- [Testing Guide](docs/testing-filters-sorting-pagination.md)
