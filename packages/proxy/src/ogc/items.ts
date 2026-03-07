@@ -9,10 +9,7 @@ import { runHook } from '../engine/plugin.js';
 import type { CqlNode } from '../engine/cql2/types.js';
 import type { PropertyConfig } from '../engine/types.js';
 import { parseSortby, validateSortable, buildUpstreamSort } from '../engine/sorting.js';
-
-function getBaseUrl(req: Request): string {
-  return process.env.BASE_URL || `${req.protocol}://${req.get('host')}/ogc`;
-}
+import { getBaseUrl } from '../utils/base-url.js';
 
 function parseBbox(bboxStr: string): [number, number, number, number] | undefined {
   const parts = bboxStr.split(',').map(Number);

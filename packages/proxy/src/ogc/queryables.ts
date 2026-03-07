@@ -1,9 +1,6 @@
 import type { Request, Response } from 'express';
 import { getCollection } from '../engine/registry.js';
-
-function getBaseUrl(req: Request): string {
-  return process.env.BASE_URL || `${req.protocol}://${req.get('host')}/ogc`;
-}
+import { getBaseUrl } from '../utils/base-url.js';
 
 const TYPE_MAP: Record<string, string> = {
   string: 'string',

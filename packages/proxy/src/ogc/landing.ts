@@ -1,8 +1,5 @@
 import type { Request, Response } from 'express';
-
-function getBaseUrl(req: Request): string {
-  return process.env.BASE_URL || `${req.protocol}://${req.get('host')}/ogc`;
-}
+import { getBaseUrl } from '../utils/base-url.js';
 
 export function landing(req: Request, res: Response) {
   const base = getBaseUrl(req);
