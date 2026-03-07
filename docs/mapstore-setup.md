@@ -37,6 +37,21 @@
 - Si erreur CORS, verifier que le proxy renvoie bien les headers CORS
 - Verifier les logs : `docker compose logs proxy`
 
+## Authentification JWT
+
+Si l'authentification JWT est activee (`security.jwt.enabled: true`), les requetes WFS DescribeFeatureType et GetFeature necessitent un token Bearer valide.
+
+- **GetCapabilities** reste accessible sans authentification
+- DescribeFeatureType et GetFeature retournent **401 Unauthorized** sans token valide
+
+Pour le developpement local, desactiver JWT dans `packages/proxy/src/config/collections.yaml` :
+
+```yaml
+security:
+  jwt:
+    enabled: false
+```
+
 ## Notes
 
 - MapStore utilise WFS 1.1.0 avec outputFormat=application/json

@@ -19,6 +19,15 @@ This starts:
 
 The proxy requires the `UPSTREAM_HOST` environment variable. In dev mode it defaults to `http://localhost:3001`.
 
+### Environment Variables
+
+| Variable | Description | Default |
+|---|---|---|
+| `UPSTREAM_HOST` | Base URL of upstream APIs | `http://localhost:3001` |
+| `PORT` | Proxy listen port | `3000` |
+| `JWT_HOST` | JWKS host for JWT validation | _(empty — JWT disabled)_ |
+| `JWT_ENDPOINT` | JWKS endpoint path | _(empty)_ |
+
 ### Docker Compose
 
 ```bash
@@ -47,11 +56,36 @@ The proxy serves 4 collections configured in `packages/proxy/src/config/collecti
 | arrondissements | Mock API | Polygon | cursor |
 | mrc-quebec | PAVICS Ouranos WFS | Polygon | WFS native |
 
+## Authentication
+
+JWT authentication is supported via [`@villedemontreal/jwt-validator`](https://github.com/VilledeMontreal/node-core-libs/tree/main/packages/node-jwt-validator). It is **disabled by default** and configured in `packages/proxy/src/config/collections.yaml`:
+
+```yaml
+security:
+  jwt:
+    enabled: true
+    host: "https://auth.example.com"
+    endpoint: "/oauth/jwks"
+```
+
+Or via environment variables (`JWT_HOST`, `JWT_ENDPOINT`).
+
+When enabled:
+- **Protected endpoints:** `/ogc/collections/*`, `/wfs` (DescribeFeatureType, GetFeature)
+- **Open endpoints:** `/health`, `/ogc/` (landing), `/ogc/api`, `/ogc/conformance`, WFS GetCapabilities
+
 ## Project Structure
 
 ```
 packages/
   proxy/          # OGC proxy server (core)
+    src/
+      auth/       # JWT authentication middleware
+      config/     # YAML collection registry
+      engine/     # Mapping engine (adapter, CQL2, pagination, etc.)
+      ogc/        # OGC API Features routes
+      wfs/        # WFS facade routes
+      plugins/    # Upstream plugins (e.g. WFS upstream)
   mock-api/       # Simulated municipal REST APIs
   conformance-tests/  # OGC API Features conformance tests
 docs/
@@ -86,3 +120,4 @@ Supports: `limit`, `offset`, `bbox`, `filter` (CQL2), `sortby`, simple query str
 - [QGIS Setup](docs/qgis-setup.md)
 - [MapStore Setup](docs/mapstore-setup.md)
 - [Testing Guide](docs/testing-filters-sorting-pagination.md)
+- [JWT Auth Design](docs/plans/2026-03-07-jwt-authentication-design.md)

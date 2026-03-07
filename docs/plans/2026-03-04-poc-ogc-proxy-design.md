@@ -11,7 +11,7 @@ Preuve de concept pour un proxy OGC qui offre une interface GIS commune aux APIs
 
 **Clients cibles :** QGIS (OGC API Features), MapStore (WFS), applications web Angular/React (OGC API Features REST/JSON).
 
-**Périmètre POC :** Sans authentification. Données simulées. Validation bout en bout avec QGIS et MapStore.
+**Périmètre POC :** Authentification JWT optionnelle (desactivee par defaut). Données simulées. Validation bout en bout avec QGIS et MapStore.
 
 ---
 
@@ -26,7 +26,7 @@ Preuve de concept pour un proxy OGC qui offre une interface GIS commune aux APIs
 | WFS output | GeoJSON uniquement |
 | WFS architecture | Façade légère au-dessus du même moteur OGC |
 | Tests conformité | Vitest + supertest |
-| Auth | Hors scope POC |
+| Auth | JWT via `@villedemontreal/jwt-validator` (desactive par defaut) |
 
 ---
 
@@ -61,6 +61,8 @@ ogc-proxy-poc/
 │   │   │   │   ├── capabilities.ts
 │   │   │   │   ├── describe.ts
 │   │   │   │   └── get-feature.ts
+│   │   │   ├── auth/             # Authentification JWT
+│   │   │   │   └── jwt.ts
 │   │   │   ├── engine/           # Moteur partagé
 │   │   │   │   ├── registry.ts
 │   │   │   │   ├── adapter.ts

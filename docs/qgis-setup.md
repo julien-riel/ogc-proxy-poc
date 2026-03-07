@@ -45,7 +45,35 @@ Utiliser le parametre `filter` avec `filter-lang=cql2-text`:
 La collection `mrc-quebec` est alimentee par le GeoServer PAVICS Ouranos.
 Elle supporte les filtres spatiaux avances via pass-through WFS.
 
+## Authentification JWT
+
+Si l'authentification JWT est activee dans la configuration du proxy (`security.jwt.enabled: true`), QGIS doit envoyer un token Bearer valide.
+
+### Configurer OAuth2 dans QGIS
+
+1. Dans les proprietes de la connexion OGC API Features, section **Authentification**
+2. Cliquer **+** pour creer une nouvelle configuration
+3. Choisir le type **OAuth2**
+4. Remplir les parametres de votre fournisseur d'identite (Microsoft Entra ID, etc.)
+5. QGIS ajoutera automatiquement le header `Authorization: Bearer <token>` a chaque requete
+
+### Endpoints ouverts (sans authentification)
+
+Les endpoints de decouverte restent accessibles sans token :
+- Landing page (`/ogc/`)
+- Conformance (`/ogc/conformance`)
+- WFS GetCapabilities
+
+### Mode developpement
+
+Pour le developpement local, desactiver JWT dans `collections.yaml` :
+
+```yaml
+security:
+  jwt:
+    enabled: false
+```
+
 ## Notes
 
-- Sans authentification pour le POC
 - Le CRS est EPSG:4326 (WGS84)

@@ -4,6 +4,8 @@ Ce document regroupe les requetes `curl` pour tester les fonctionnalites de filt
 
 **Base URL :** `http://localhost:3000`
 
+> **Note JWT :** Si l'authentification JWT est activee (`security.jwt.enabled: true` dans `collections.yaml`), ajouter le header `Authorization: Bearer <token>` aux requetes sur les endpoints proteges (collections, items, WFS GetFeature/DescribeFeatureType). Les exemples ci-dessous supposent que JWT est desactive (mode dev par defaut).
+
 ---
 
 ## Table des matieres
