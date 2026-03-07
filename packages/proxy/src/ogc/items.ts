@@ -4,6 +4,7 @@ import { getRegistry } from '../engine/registry.js';
 import { fetchUpstreamItems, fetchUpstreamItem, UpstreamError } from '../engine/adapter.js';
 import { buildFeatureCollection, buildFeature } from '../engine/geojson-builder.js';
 import { applyLimits } from '../engine/limits.js';
+import type { LimitsResult } from '../engine/limits.js';
 import { parseCql2, evaluateFilter, extractBboxFromAst } from '../engine/cql2/index.js';
 import { runHook } from '../engine/plugin.js';
 import type { CqlNode } from '../engine/cql2/types.js';
@@ -88,14 +89,32 @@ function buildPostFetchSimpleFilters(
   }));
 }
 
-export async function getItems(req: Request, res: Response) {
-  const collectionId = req.params.collectionId as string;
-  const config = getCollection(collectionId);
+interface ParsedItemsRequest {
+  limit: number;
+  offset: number;
+  bbox?: [number, number, number, number];
+  cqlAst: CqlNode | null;
+  filterStr?: string;
+  filterLang?: string;
+  sortbyStr?: string;
+  upstreamParams: Record<string, string>;
+  postFetchSimpleAst: CqlNode | null;
+  queryParams: Record<string, string>;
+  limits: LimitsResult;
+}
 
-  if (!config) {
-    return res.status(404).json({ code: 'NotFound', description: `Collection '${collectionId}' not found` });
-  }
+interface ParseError {
+  error: { status: number; body: Record<string, string> };
+}
 
+/**
+ * Parse and validate all request parameters for getItems.
+ * Returns either a parsed request object or an error.
+ */
+function parseItemsRequest(
+  req: Request,
+  config: ReturnType<typeof getCollection> & object,
+): ParsedItemsRequest | ParseError {
   const registry = getRegistry();
   const defaults = registry.defaults ?? {};
 
@@ -105,10 +124,15 @@ export async function getItems(req: Request, res: Response) {
   const limits = applyLimits({ limit: rawLimit, offset: rawOffset }, config, defaults);
 
   if (limits.rejected) {
-    return res.status(400).json({
-      code: 'LimitExceeded',
-      description: `Offset ${rawOffset} exceeds maxFeatures (${limits.maxFeatures})`,
-    });
+    return {
+      error: {
+        status: 400,
+        body: {
+          code: 'LimitExceeded',
+          description: `Offset ${rawOffset} exceeds maxFeatures (${limits.maxFeatures})`,
+        },
+      },
+    };
   }
 
   const limit = limits.limit;
@@ -122,10 +146,15 @@ export async function getItems(req: Request, res: Response) {
   const filterStr = req.query.filter as string | undefined;
   const filterLang = req.query['filter-lang'] as string | undefined;
   if (filterStr && filterLang && filterLang !== 'cql2-text') {
-    return res.status(400).json({
-      code: 'InvalidFilterLang',
-      description: `Unsupported filter language: '${filterLang}'. Only 'cql2-text' is supported.`,
-    });
+    return {
+      error: {
+        status: 400,
+        body: {
+          code: 'InvalidFilterLang',
+          description: `Unsupported filter language: '${filterLang}'. Only 'cql2-text' is supported.`,
+        },
+      },
+    };
   }
 
   let cqlAst: CqlNode | null = null;
@@ -137,10 +166,15 @@ export async function getItems(req: Request, res: Response) {
         bbox = extractBboxFromAst(cqlAst) ?? undefined;
       }
     } catch (err) {
-      return res.status(400).json({
-        code: 'InvalidFilter',
-        description: err instanceof Error ? err.message : 'Invalid CQL2 filter',
-      });
+      return {
+        error: {
+          status: 400,
+          body: {
+            code: 'InvalidFilter',
+            description: err instanceof Error ? err.message : 'Invalid CQL2 filter',
+          },
+        },
+      };
     }
   }
 
@@ -160,11 +194,76 @@ export async function getItems(req: Request, res: Response) {
     const sortFields = parseSortby(sortbyStr);
     const sortError = validateSortable(sortFields, config.properties);
     if (sortError) {
-      return res.status(400).json({ code: 'InvalidSortby', description: sortError });
+      return {
+        error: {
+          status: 400,
+          body: { code: 'InvalidSortby', description: sortError },
+        },
+      };
     }
     const sortParams = buildUpstreamSort(sortFields, config.properties);
     Object.assign(upstreamParams, sortParams);
   }
+
+  return {
+    limit,
+    offset,
+    bbox,
+    cqlAst,
+    filterStr,
+    filterLang,
+    sortbyStr,
+    upstreamParams,
+    postFetchSimpleAst,
+    queryParams,
+    limits,
+  };
+}
+
+/**
+ * Apply post-fetch filters: bbox, CQL2, and simple query param filters.
+ */
+function applyPostFilters(
+  features: GeoJSON.Feature[],
+  bbox: [number, number, number, number] | undefined,
+  cqlAst: CqlNode | null,
+  postFetchSimpleAst: CqlNode | null,
+  isWfs: boolean,
+): GeoJSON.Feature[] {
+  let result = features;
+  if (bbox && !isWfs) {
+    result = result.filter(f => isInBbox(f, bbox));
+  }
+  if (cqlAst) {
+    result = result.filter(f => evaluateFilter(cqlAst, f));
+  }
+  if (postFetchSimpleAst) {
+    result = result.filter(f => evaluateFilter(postFetchSimpleAst, f));
+  }
+  return result;
+}
+
+/**
+ * Type guard to check if a parse result is an error.
+ */
+function isParseError(result: ParsedItemsRequest | ParseError): result is ParseError {
+  return 'error' in result;
+}
+
+export async function getItems(req: Request, res: Response) {
+  const collectionId = req.params.collectionId as string;
+  const config = getCollection(collectionId);
+
+  if (!config) {
+    return res.status(404).json({ code: 'NotFound', description: `Collection '${collectionId}' not found` });
+  }
+
+  const parsed = parseItemsRequest(req, config);
+  if (isParseError(parsed)) {
+    return res.status(parsed.error.status).json(parsed.error.body);
+  }
+
+  const { limit, offset, bbox, cqlAst, filterStr, upstreamParams, postFetchSimpleAst, queryParams, limits } = parsed;
 
   // Load plugin
   const plugin = await getCollectionPlugin(collectionId);
@@ -212,20 +311,8 @@ export async function getItems(req: Request, res: Response) {
       features = await Promise.all(features.map(f => plugin.transformFeature!(f)));
     }
 
-    // Post-fetch bbox filter (for REST upstreams that don't support bbox)
-    if (bbox && config.upstream.type !== 'wfs') {
-      features = features.filter(f => isInBbox(f, bbox!));
-    }
-
-    // Post-fetch CQL2 filter
-    if (cqlAst) {
-      features = features.filter(f => evaluateFilter(cqlAst!, f));
-    }
-
-    // Post-fetch simple filters not passed to upstream
-    if (postFetchSimpleAst) {
-      features = features.filter(f => evaluateFilter(postFetchSimpleAst, f));
-    }
+    // Apply post-fetch filters
+    features = applyPostFilters(features, bbox, cqlAst, postFetchSimpleAst, config.upstream.type === 'wfs');
 
     // Build response
     let fc = buildFeatureCollection(
