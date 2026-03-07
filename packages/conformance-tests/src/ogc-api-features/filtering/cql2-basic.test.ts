@@ -93,4 +93,22 @@ describe('CQL2 Basic', () => {
     );
     expect(status).toBe(400);
   });
+
+  it('filters with IS NULL', async () => {
+    const { body } = await fetchGeoJson(
+      cql2Url('bornes-fontaines', 'description IS NULL')
+    );
+    // All bornes-fontaines have no 'description' property, so all should match
+    expect(body.features.length).toBeGreaterThan(0);
+  });
+
+  it('filters with IS NOT NULL', async () => {
+    const { body } = await fetchGeoJson(
+      cql2Url('bornes-fontaines', 'etat IS NOT NULL')
+    );
+    expect(body.features.length).toBeGreaterThan(0);
+    for (const f of body.features) {
+      expect(f.properties.etat).toBeDefined();
+    }
+  });
 });
