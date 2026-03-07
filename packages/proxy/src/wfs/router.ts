@@ -16,42 +16,46 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
   const router = Router();
 
   router.use(express.text({ type: ['application/xml', 'text/xml'] }));
-  router.use(jwtMiddleware);
 
-  router.get('/', async (req, res) => {
+  router.get('/', (req, res, next) => {
     const query = normalizeQuery(req.query as Record<string, unknown>);
-    const request = query.request || '';
+    const request = (query.request || '').toLowerCase();
 
-    switch (request.toLowerCase()) {
-      case 'getcapabilities':
-        res.set('Content-Type', 'application/xml');
-        return res.send(buildCapabilitiesXml(req));
-
-      case 'describefeaturetype': {
-        const typeName = query.typename || query.typenames || '';
-        const result = buildDescribeFeatureType(typeName);
-        if (!result) return res.status(404).json({ error: `Type '${typeName}' not found` });
-        return res.json(result);
-      }
-
-      case 'getfeature': {
-        try {
-          const params = parseGetFeatureGet(query);
-          const result = await executeGetFeature(params);
-          if (!result) return res.status(404).json({ error: `Type '${params.typeName}' not found` });
-          return res.json(result);
-        } catch (err) {
-          const message = err instanceof Error ? err.message : 'Unknown error';
-          return res.status(502).json({ error: message });
-        }
-      }
-
-      default:
-        return res.status(400).json({ error: `Unknown request: ${request}` });
+    // GetCapabilities is a discovery operation — no auth required
+    if (request === 'getcapabilities') {
+      res.set('Content-Type', 'application/xml');
+      return res.send(buildCapabilitiesXml(req));
     }
+
+    // All other operations require JWT
+    jwtMiddleware(req, res, async () => {
+      switch (request) {
+        case 'describefeaturetype': {
+          const typeName = query.typename || query.typenames || '';
+          const result = buildDescribeFeatureType(typeName);
+          if (!result) return res.status(404).json({ error: `Type '${typeName}' not found` });
+          return res.json(result);
+        }
+
+        case 'getfeature': {
+          try {
+            const params = parseGetFeatureGet(query);
+            const result = await executeGetFeature(params);
+            if (!result) return res.status(404).json({ error: `Type '${params.typeName}' not found` });
+            return res.json(result);
+          } catch (err) {
+            const message = err instanceof Error ? err.message : 'Unknown error';
+            return res.status(502).json({ error: message });
+          }
+        }
+
+        default:
+          return res.status(400).json({ error: `Unknown request: ${request}` });
+      }
+    });
   });
 
-  router.post('/', async (req, res) => {
+  router.post('/', jwtMiddleware, async (req, res) => {
     const body = req.body as string;
     if (!body) return res.status(400).json({ error: 'Missing XML body' });
 

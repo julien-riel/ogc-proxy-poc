@@ -3,7 +3,7 @@ import { createJwtMiddleware } from './jwt.js';
 
 describe('createJwtMiddleware', () => {
   it('should return a no-op middleware when JWT is disabled', async () => {
-    const middleware = createJwtMiddleware({ enabled: false, host: '' });
+    const middleware = await createJwtMiddleware({ enabled: false, host: '' });
 
     let nextCalled = false;
     const req = {} as any;
@@ -15,7 +15,7 @@ describe('createJwtMiddleware', () => {
   });
 
   it('should return a no-op middleware when config is undefined', async () => {
-    const middleware = createJwtMiddleware(undefined);
+    const middleware = await createJwtMiddleware(undefined);
 
     let nextCalled = false;
     const req = {} as any;
@@ -24,5 +24,10 @@ describe('createJwtMiddleware', () => {
 
     middleware(req, res, next);
     expect(nextCalled).toBe(true);
+  });
+
+  it('should throw when enabled but host is missing', async () => {
+    await expect(createJwtMiddleware({ enabled: true, host: '' }))
+      .rejects.toThrow('JWT is enabled but jwt.host is not configured');
   });
 });

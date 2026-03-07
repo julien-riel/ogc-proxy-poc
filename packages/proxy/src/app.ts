@@ -5,10 +5,10 @@ import { createWfsRouter } from './wfs/router.js';
 import { loadRegistry, getRegistry } from './engine/registry.js';
 import { createJwtMiddleware } from './auth/jwt.js';
 
-export function createApp() {
+export async function createApp() {
   loadRegistry();
 
-  const jwtMiddleware = createJwtMiddleware(getRegistry().security?.jwt);
+  const jwtMiddleware = await createJwtMiddleware(getRegistry().security?.jwt);
 
   const app = express();
   app.use(cors());

@@ -7,14 +7,18 @@ const noopMiddleware: RequestHandler = (_req, _res, next) => next();
  * Creates JWT validation middleware based on config.
  * When JWT is disabled or config is absent, returns a passthrough middleware.
  */
-export function createJwtMiddleware(config: JwtConfig | undefined): RequestHandler {
+export async function createJwtMiddleware(config: JwtConfig | undefined): Promise<RequestHandler> {
   if (!config?.enabled) {
     return noopMiddleware;
   }
 
-  const { init, jwtValidationMiddleware } = require('@villedemontreal/jwt-validator');
-  const { createLogger } = require('@villedemontreal/logger');
-  const { correlationIdService } = require('@villedemontreal/correlation-id');
+  if (!config.host) {
+    throw new Error('JWT is enabled but jwt.host is not configured');
+  }
+
+  const { init, jwtValidationMiddleware } = await import('@villedemontreal/jwt-validator');
+  const { createLogger } = await import('@villedemontreal/logger');
+  const { correlationIdService } = await import('@villedemontreal/correlation-id');
 
   init(
     createLogger,
