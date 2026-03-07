@@ -48,5 +48,17 @@ export async function createApp() {
   app.use('/ogc', createOgcRouter(jwtMiddleware));
   app.use('/wfs', createWfsRouter(jwtMiddleware));
   app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+  app.get('/ready', (_req, res) => {
+    try {
+      const reg = getRegistry();
+      const hasCollections = Object.keys(reg.collections).length > 0;
+      if (hasCollections) {
+        return res.json({ status: 'ready', collections: Object.keys(reg.collections).length });
+      }
+      return res.status(503).json({ status: 'not ready', reason: 'no collections loaded' });
+    } catch {
+      return res.status(503).json({ status: 'not ready', reason: 'registry not loaded' });
+    }
+  });
   return app;
 }
