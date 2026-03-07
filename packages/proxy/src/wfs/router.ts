@@ -39,7 +39,7 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
         case 'describefeaturetype': {
           const typeName = query.typename || query.typenames || '';
           const result = buildDescribeFeatureType(typeName);
-          if (!result) return res.status(404).json({ error: 'Requested type not found' });
+          if (!result) return res.status(404).json({ code: 'NotFound', description: 'Requested type not found' });
           return res.json(result);
         }
 
@@ -47,44 +47,44 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
           try {
             const params = parseGetFeatureGet(query);
             const result = await executeGetFeature(params);
-            if (!result) return res.status(404).json({ error: 'Requested type not found' });
+            if (!result) return res.status(404).json({ code: 'NotFound', description: 'Requested type not found' });
             return res.json(result);
           } catch (err) {
             if (err instanceof UpstreamTimeoutError) {
               const log = logger.wfs();
               log.error({ err }, 'WFS upstream timeout');
-              return res.status(504).json({ error: 'Upstream request timed out' });
+              return res.status(504).json({ code: 'GatewayTimeout', description: 'Upstream request timed out' });
             }
             const log = logger.wfs();
             log.error({ err, query }, 'WFS GetFeature failed');
-            return res.status(502).json({ error: 'An upstream error occurred' });
+            return res.status(502).json({ code: 'UpstreamError', description: 'An upstream error occurred' });
           }
         }
 
         default:
-          return res.status(400).json({ error: 'Unknown or missing WFS request parameter' });
+          return res.status(400).json({ code: 'InvalidRequest', description: 'Unknown or missing WFS request parameter' });
       }
     });
   });
 
   router.post('/', jwtMiddleware, async (req, res) => {
     const body = req.body as string;
-    if (!body) return res.status(400).json({ error: 'Missing XML body' });
+    if (!body) return res.status(400).json({ code: 'InvalidRequest', description: 'Missing XML body' });
 
     try {
       const params = parseGetFeaturePost(body);
       const result = await executeGetFeature(params);
-      if (!result) return res.status(404).json({ error: 'Requested type not found' });
+      if (!result) return res.status(404).json({ code: 'NotFound', description: 'Requested type not found' });
       return res.json(result);
     } catch (err) {
       if (err instanceof UpstreamTimeoutError) {
         const log = logger.wfs();
         log.error({ err }, 'WFS upstream timeout');
-        return res.status(504).json({ error: 'Upstream request timed out' });
+        return res.status(504).json({ code: 'GatewayTimeout', description: 'Upstream request timed out' });
       }
       const log = logger.wfs();
       log.error({ err }, 'WFS GetFeature POST failed');
-      return res.status(502).json({ error: 'An upstream error occurred' });
+      return res.status(502).json({ code: 'UpstreamError', description: 'An upstream error occurred' });
     }
   });
 
