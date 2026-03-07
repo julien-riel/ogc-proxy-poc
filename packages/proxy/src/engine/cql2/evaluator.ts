@@ -24,6 +24,8 @@ export function evaluateFilter(node: CqlNode, feature: Feature): boolean {
       const val = getPropertyValue(feature, node.property);
       const target = node.value;
       switch (node.operator) {
+        // Intentional loose equality: GeoJSON properties may be strings ("42")
+        // while CQL2 parses numeric literals as numbers (42).
         case '=': return val == target;
         case '<>': return val != target;
         case '<': return (val as number) < (target as number);
