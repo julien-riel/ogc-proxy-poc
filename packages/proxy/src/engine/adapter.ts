@@ -22,12 +22,23 @@ export class UpstreamError extends Error {
 }
 
 export class UpstreamTimeoutError extends Error {
-  constructor(public readonly url: string, public readonly timeoutMs: number) {
+  public readonly timeoutMs: number;
+  constructor(url: string, timeoutMs: number) {
     super(`Upstream timeout after ${timeoutMs}ms`);
+    this.timeoutMs = timeoutMs;
   }
 }
 
 const DEFAULT_TIMEOUT_MS = 15_000;
+
+function redactUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    return `${u.origin}${u.pathname}`;
+  } catch {
+    return url;
+  }
+}
 
 async function fetchJson(url: string, timeoutMs?: number): Promise<Record<string, unknown>> {
   const log = logger.adapter();
@@ -38,7 +49,7 @@ async function fetchJson(url: string, timeoutMs?: number): Promise<Record<string
   try {
     const response = await fetch(url, { signal: controller.signal });
     const durationMs = Date.now() - start;
-    log.info({ url, status: response.status, durationMs }, `upstream ${response.status} in ${durationMs}ms`);
+    log.info({ url: redactUrl(url), status: response.status, durationMs }, `upstream ${response.status} in ${durationMs}ms`);
     if (!response.ok) {
       throw new UpstreamError(response.status);
     }
@@ -170,7 +181,7 @@ async function fetchWfsUpstream(config: CollectionConfig, params: FetchParams): 
   try {
     const response = await fetch(url, { signal: controller.signal });
     const durationMs = Date.now() - start;
-    log.info({ url, status: response.status, durationMs }, `upstream WFS ${response.status} in ${durationMs}ms`);
+    log.info({ url: redactUrl(url), status: response.status, durationMs }, `upstream WFS ${response.status} in ${durationMs}ms`);
     if (!response.ok) {
       throw new UpstreamError(response.status);
     }
