@@ -1,6 +1,6 @@
 import { Router, type RequestHandler } from 'express';
 import express from 'express';
-import { buildCapabilitiesXml } from './capabilities.js';
+import { buildCapabilitiesXml, buildCapabilities20Xml } from './capabilities.js';
 import { buildDescribeFeatureType } from './describe.js';
 import { parseGetFeatureGet, parseGetFeaturePost, executeGetFeature } from './get-feature.js';
 
@@ -24,6 +24,10 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
     // GetCapabilities is a discovery operation — no auth required
     if (request === 'getcapabilities') {
       res.set('Content-Type', 'application/xml');
+      const version = query.version || '1.1.0';
+      if (version.startsWith('2.')) {
+        return res.send(buildCapabilities20Xml(req));
+      }
       return res.send(buildCapabilitiesXml(req));
     }
 
