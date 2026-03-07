@@ -28,11 +28,13 @@ status and the test file(s) that verify them. All test paths are relative to
 | GetFeature | resultType=hits | Supported | wfs11/get-feature.test.ts |
 | GetFeature | SRS reprojection (EPSG:3857) | Supported | wfs11/get-feature.test.ts |
 | GetFeature | All geometry types | Supported | wfs11/get-feature.test.ts |
+| GetFeature | Filter Encoding — comparison operators (=, <>, <, >, <=, >=, Like, Between, Null) | Supported | wfs11/filter-encoding.test.ts |
+| GetFeature | Filter Encoding — logical operators (And, Or, Not) | Supported | wfs11/filter-encoding.test.ts |
+| GetFeature | Filter Encoding — spatial operators (BBOX, Intersects, Within, Contains) | Supported | wfs11/filter-encoding.test.ts |
 
 ### WFS 1.1.0 Limitations
 
 - GML output not supported (GeoJSON only).
-- Filter Encoding (OGC filter XML) not supported in queries.
 - Transaction operations not supported.
 
 ---
@@ -52,11 +54,15 @@ status and the test file(s) that verify them. All test paths are relative to
 | GetFeature | resultType=hits | Supported | wfs20/get-feature.test.ts |
 | GetFeature | POST with WFS 2.0 namespace | Supported | wfs20/get-feature.test.ts |
 | Version negotiation | Default to 1.1.0, accept 2.0.0 | Supported | wfs20/version-negotiation.test.ts |
+| DescribeFeatureType | JSON schema response (version 2.0.0) | Supported | wfs20/describe.test.ts |
+| DescribeFeatureType | typeNames (plural) parameter | Supported | wfs20/describe.test.ts |
+| GetFeature | FES 2.0 Filter — comparison operators | Supported | wfs20/filter-encoding.test.ts |
+| GetFeature | FES 2.0 Filter — logical operators | Supported | wfs20/filter-encoding.test.ts |
+| GetFeature | FES 2.0 Filter — spatial operators | Supported | wfs20/filter-encoding.test.ts |
 
 ### WFS 2.0 Not Supported
 
 - StoredQueries (ListStoredQueries, DescribeStoredQueries, CreateStoredQuery, DropStoredQuery).
-- Ad-hoc queries with Filter Encoding Specification (FES).
 - GetPropertyValue operation.
 - GML output (only GeoJSON).
 - Transaction and Locking operations.

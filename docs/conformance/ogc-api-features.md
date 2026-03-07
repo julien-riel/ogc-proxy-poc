@@ -93,7 +93,7 @@ Conformance class URI: `http://www.opengis.net/spec/cql2/1.0/conf/basic-cql2`
 |---|---|---|---|
 | Comparison operators | =, <>, <, >, <=, >= | Supported | filtering/cql2-basic.test.ts |
 | Logical operators | AND, OR, NOT | Supported | filtering/cql2-basic.test.ts |
-| IS NULL | Null testing | Not Supported | N/A |
+| IS NULL | Null testing | Supported | filtering/cql2-basic.test.ts |
 
 ---
 
@@ -104,8 +104,8 @@ Conformance class URI: `http://www.opengis.net/spec/cql2/1.0/conf/advanced-compa
 | Requirement | Description | Status | Test(s) |
 |---|---|---|---|
 | LIKE | Pattern matching with % and _ | Supported | filtering/cql2-advanced.test.ts |
-| IN | List membership | Not Supported | Parser not implemented |
-| BETWEEN | Range testing | Not Supported | Parser not implemented |
+| IN | List membership | Supported | filtering/cql2-advanced.test.ts |
+| BETWEEN | Range testing | Supported | filtering/cql2-advanced.test.ts |
 
 ---
 
@@ -128,7 +128,11 @@ Conformance class URI: `http://www.opengis.net/spec/cql2/1.0/conf/spatial-functi
 | S_WITHIN | Containment | Supported | filtering/cql2-spatial.test.ts |
 | S_OVERLAPS | Overlap | Supported (code exists) | N/A |
 | S_DWITHIN | Distance-based | Supported (extension) | filtering/cql2-spatial.test.ts |
-| S_CONTAINS, S_CROSSES, etc. | Other spatial | Not Supported | N/A |
+| S_CONTAINS | Containment (inverse) | Supported | filtering/cql2-spatial.test.ts |
+| S_CROSSES | Crossing | Supported | filtering/cql2-spatial.test.ts |
+| S_TOUCHES | Touching | Supported | filtering/cql2-spatial.test.ts |
+| S_DISJOINT | Disjointness | Supported | filtering/cql2-spatial.test.ts |
+| S_EQUALS | Equality | Supported | filtering/cql2-spatial.test.ts |
 
 ---
 
