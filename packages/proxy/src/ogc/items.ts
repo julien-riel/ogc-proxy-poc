@@ -11,6 +11,7 @@ import type { CqlNode } from '../engine/cql2/types.js';
 import type { PropertyConfig } from '../engine/types.js';
 import { parseSortby, validateSortable, buildUpstreamSort } from '../engine/sorting.js';
 import { getBaseUrl } from '../utils/base-url.js';
+import { logger } from '../logger.js';
 
 function parseBbox(bboxStr: string): [number, number, number, number] | undefined {
   const parts = bboxStr.split(',').map(Number);
@@ -334,6 +335,8 @@ export async function getItems(req: Request, res: Response) {
     res.set('Content-Type', 'application/geo+json');
     res.json(fc);
   } catch (err) {
+    const log = logger.items();
+    log.error({ err, collectionId, query: req.query }, 'getItems failed');
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(502).json({ code: 'UpstreamError', description: message });
   }
@@ -381,6 +384,8 @@ export async function getItem(req: Request, res: Response) {
     if (err instanceof UpstreamError && err.statusCode === 404) {
       return res.status(404).json({ code: 'NotFound', description: `Feature '${featureId}' not found` });
     }
+    const log = logger.items();
+    log.error({ err, collectionId, featureId }, 'getItem failed');
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(502).json({ code: 'UpstreamError', description: message });
   }

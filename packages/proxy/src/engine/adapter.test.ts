@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fetchUpstreamItems, fetchUpstreamItem } from './adapter.js';
 import type { CollectionConfig } from './types.js';
+import { initLogging } from '../logger.js';
 
 const offsetLimitConfig: CollectionConfig = {
   title: 'Test Offset/Limit',
@@ -40,6 +41,8 @@ const cursorConfig: CollectionConfig = {
   idField: 'code',
   properties: [{ name: 'nom', type: 'string' }],
 };
+
+initLogging();
 
 describe('Adapter', () => {
   beforeEach(() => {

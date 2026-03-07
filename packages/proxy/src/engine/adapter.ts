@@ -1,6 +1,7 @@
 import type { CollectionConfig } from './types.js';
 import { getByPath } from './geojson-builder.js';
 import { buildWfsGetFeatureUrl } from '../plugins/wfs-upstream.js';
+import { logger } from '../logger.js';
 
 export interface FetchParams {
   offset: number;
@@ -21,11 +22,22 @@ export class UpstreamError extends Error {
 }
 
 async function fetchJson(url: string): Promise<Record<string, unknown>> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new UpstreamError(response.status);
+  const log = logger.adapter();
+  const start = Date.now();
+  try {
+    const response = await fetch(url);
+    const durationMs = Date.now() - start;
+    log.info({ url, status: response.status, durationMs }, `upstream ${response.status} in ${durationMs}ms`);
+    if (!response.ok) {
+      throw new UpstreamError(response.status);
+    }
+    return response.json() as Promise<Record<string, unknown>>;
+  } catch (err) {
+    if (err instanceof UpstreamError) throw err;
+    const durationMs = Date.now() - start;
+    log.error({ url, durationMs, err }, 'upstream fetch failed');
+    throw err;
   }
-  return response.json() as Promise<Record<string, unknown>>;
 }
 
 function extractItems(body: Record<string, unknown>, config: CollectionConfig): Record<string, unknown>[] {
@@ -106,6 +118,7 @@ async function fetchCursorBased(config: CollectionConfig, params: FetchParams): 
 }
 
 async function fetchWfsUpstream(config: CollectionConfig, params: FetchParams): Promise<UpstreamPage> {
+  const log = logger.adapter();
   const url = buildWfsGetFeatureUrl(
     config.upstream.baseUrl,
     config.upstream.typeName!,
@@ -117,15 +130,25 @@ async function fetchWfsUpstream(config: CollectionConfig, params: FetchParams): 
     },
   );
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new UpstreamError(response.status);
-  }
-  const body = await response.json() as Record<string, unknown>;
-  const features = (body.features ?? []) as Record<string, unknown>[];
-  const total = body.totalFeatures as number | undefined;
+  const start = Date.now();
+  try {
+    const response = await fetch(url);
+    const durationMs = Date.now() - start;
+    log.info({ url, status: response.status, durationMs }, `upstream WFS ${response.status} in ${durationMs}ms`);
+    if (!response.ok) {
+      throw new UpstreamError(response.status);
+    }
+    const body = await response.json() as Record<string, unknown>;
+    const features = (body.features ?? []) as Record<string, unknown>[];
+    const total = body.totalFeatures as number | undefined;
 
-  return { items: features, total };
+    return { items: features, total };
+  } catch (err) {
+    if (err instanceof UpstreamError) throw err;
+    const durationMs = Date.now() - start;
+    log.error({ url, durationMs, err }, 'upstream WFS fetch failed');
+    throw err;
+  }
 }
 
 export async function fetchUpstreamItems(

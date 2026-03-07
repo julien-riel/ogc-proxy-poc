@@ -3,6 +3,7 @@ import express from 'express';
 import { buildCapabilitiesXml, buildCapabilities20Xml } from './capabilities.js';
 import { buildDescribeFeatureType } from './describe.js';
 import { parseGetFeatureGet, parseGetFeaturePost, executeGetFeature } from './get-feature.js';
+import { logger } from '../logger.js';
 
 function normalizeQuery(query: Record<string, unknown>): Record<string, string> {
   const normalized: Record<string, string> = {};
@@ -48,6 +49,8 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
             if (!result) return res.status(404).json({ error: `Type '${params.typeName}' not found` });
             return res.json(result);
           } catch (err) {
+            const log = logger.wfs();
+            log.error({ err, query }, 'WFS GetFeature failed');
             const message = err instanceof Error ? err.message : 'Unknown error';
             return res.status(502).json({ error: message });
           }
@@ -69,6 +72,8 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
       if (!result) return res.status(404).json({ error: `Type '${params.typeName}' not found` });
       return res.json(result);
     } catch (err) {
+      const log = logger.wfs();
+      log.error({ err }, 'WFS GetFeature POST failed');
       const message = err instanceof Error ? err.message : 'Unknown error';
       return res.status(502).json({ error: message });
     }
