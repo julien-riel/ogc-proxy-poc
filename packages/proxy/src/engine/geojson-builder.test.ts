@@ -63,11 +63,11 @@ describe('GeoJSON Builder', () => {
 
   describe('buildFeatureCollection', () => {
     it('builds a FeatureCollection with links and counts', () => {
-      const items = [
-        { id: 1, x: -73.5, y: 45.5, etat: 'actif' },
-        { id: 2, x: -73.6, y: 45.6, etat: 'inactif' },
+      const features = [
+        buildFeature({ id: 1, x: -73.5, y: 45.5, etat: 'actif' }, pointConfig),
+        buildFeature({ id: 2, x: -73.6, y: 45.6, etat: 'inactif' }, pointConfig),
       ];
-      const fc = buildFeatureCollection(items, pointConfig, {
+      const fc = buildFeatureCollection(features, {
         baseUrl: 'http://localhost:3000/ogc',
         collectionId: 'test',
         offset: 0,
@@ -81,8 +81,8 @@ describe('GeoJSON Builder', () => {
     });
 
     it('includes next link when more items exist', () => {
-      const items = [{ id: 1, x: -73.5, y: 45.5, etat: 'actif' }];
-      const fc = buildFeatureCollection(items, pointConfig, {
+      const features = [buildFeature({ id: 1, x: -73.5, y: 45.5, etat: 'actif' }, pointConfig)];
+      const fc = buildFeatureCollection(features, {
         baseUrl: 'http://localhost:3000/ogc',
         collectionId: 'test',
         offset: 0,
@@ -96,8 +96,8 @@ describe('GeoJSON Builder', () => {
     });
 
     it('omits next link on last page', () => {
-      const items = [{ id: 1, x: -73.5, y: 45.5, etat: 'actif' }];
-      const fc = buildFeatureCollection(items, pointConfig, {
+      const features = [buildFeature({ id: 1, x: -73.5, y: 45.5, etat: 'actif' }, pointConfig)];
+      const fc = buildFeatureCollection(features, {
         baseUrl: 'http://localhost:3000/ogc',
         collectionId: 'test',
         offset: 4,
@@ -109,8 +109,8 @@ describe('GeoJSON Builder', () => {
     });
 
     it('omits numberMatched when total is undefined', () => {
-      const items = [{ id: 1, x: -73.5, y: 45.5, etat: 'actif' }];
-      const fc = buildFeatureCollection(items, pointConfig, {
+      const features = [buildFeature({ id: 1, x: -73.5, y: 45.5, etat: 'actif' }, pointConfig)];
+      const fc = buildFeatureCollection(features, {
         baseUrl: 'http://localhost:3000/ogc',
         collectionId: 'test',
         offset: 0,

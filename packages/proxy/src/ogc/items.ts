@@ -229,11 +229,9 @@ export async function getItems(req: Request, res: Response) {
 
     // Build response
     let fc = buildFeatureCollection(
-      [], // We pass features directly below
-      config,
+      features,
       { baseUrl: getBaseUrl(req), collectionId, offset, limit, total: upstream.total },
     );
-    fc = { ...fc, features, numberReturned: features.length };
 
     // Suppress next link if at maxFeatures
     if (limits.suppressNext) {

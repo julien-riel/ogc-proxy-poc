@@ -90,11 +90,9 @@ interface OgcFeatureCollection {
 }
 
 export function buildFeatureCollection(
-  items: Record<string, unknown>[],
-  config: CollectionConfig,
+  features: GeoJSON.Feature[],
   ctx: PaginationContext,
 ): OgcFeatureCollection {
-  const features = items.map(item => buildFeature(item, config));
   const itemsUrl = `${ctx.baseUrl}/collections/${ctx.collectionId}/items`;
 
   const links: Array<{ href: string; rel: string; type: string }> = [
