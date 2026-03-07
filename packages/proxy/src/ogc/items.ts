@@ -13,7 +13,7 @@ import { parseSortby, validateSortable, buildUpstreamSort } from '../engine/sort
 import { getBaseUrl } from '../utils/base-url.js';
 import { logger } from '../logger.js';
 
-function parseBbox(bboxStr: string): [number, number, number, number] | undefined {
+export function parseBbox(bboxStr: string): [number, number, number, number] | undefined {
   const parts = bboxStr.split(',').map(Number);
   if (parts.length === 4 && parts.every(n => !isNaN(n))) {
     return parts as [number, number, number, number];
@@ -21,7 +21,7 @@ function parseBbox(bboxStr: string): [number, number, number, number] | undefine
   return undefined;
 }
 
-function isInBbox(feature: GeoJSON.Feature, bbox: [number, number, number, number]): boolean {
+export function isInBbox(feature: GeoJSON.Feature, bbox: [number, number, number, number]): boolean {
   const [minLon, minLat, maxLon, maxLat] = bbox;
   const geom = feature.geometry;
   if (!geom) return false;
@@ -44,7 +44,7 @@ function isInBbox(feature: GeoJSON.Feature, bbox: [number, number, number, numbe
  * Build upstream query params from simple query string filters.
  * Only passes through properties that are filterable with upstream mapping.
  */
-function buildUpstreamFilters(
+export function buildUpstreamFilters(
   queryParams: Record<string, string>,
   properties: PropertyConfig[],
 ): Record<string, string> {
@@ -63,7 +63,7 @@ function buildUpstreamFilters(
  * Build simple query string filters as CQL2 AST for post-fetch evaluation.
  * Only includes properties that are NOT passed through to upstream.
  */
-function buildPostFetchSimpleFilters(
+export function buildPostFetchSimpleFilters(
   queryParams: Record<string, string>,
   properties: PropertyConfig[],
 ): CqlNode | null {
@@ -237,7 +237,7 @@ function parseItemsRequest(
 /**
  * Apply post-fetch filters: bbox, CQL2, and simple query param filters.
  */
-function applyPostFilters(
+export function applyPostFilters(
   features: GeoJSON.Feature[],
   bbox: [number, number, number, number] | undefined,
   cqlAst: CqlNode | null,
