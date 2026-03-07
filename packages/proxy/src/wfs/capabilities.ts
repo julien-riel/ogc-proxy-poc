@@ -1,5 +1,6 @@
 import type { Request } from 'express';
 import { getRegistry } from '../engine/registry.js';
+import { escapeXml } from '../utils/xml.js';
 
 function getServiceUrl(req: Request): string {
   const host = process.env.BASE_URL
@@ -21,9 +22,9 @@ export function buildCapabilities20Xml(req: Request): string {
     const [minLon, minLat, maxLon, maxLat] = config.extent?.spatial ?? defaultExtent;
     return `
     <FeatureType>
-      <Name>${id}</Name>
-      <Title>${config.title}</Title>
-      <Abstract>${config.description || ''}</Abstract>
+      <Name>${escapeXml(id)}</Name>
+      <Title>${escapeXml(config.title)}</Title>
+      <Abstract>${escapeXml(config.description || '')}</Abstract>
       <DefaultCRS>urn:ogc:def:crs:OGC:1.3:CRS84</DefaultCRS>
       <OtherCRS>urn:ogc:def:crs:EPSG::3857</OtherCRS>
       <ows:WGS84BoundingBox>
@@ -156,9 +157,9 @@ export function buildCapabilitiesXml(req: Request): string {
     const [minLon, minLat, maxLon, maxLat] = config.extent?.spatial ?? defaultExtent;
     return `
     <FeatureType>
-      <Name>${id}</Name>
-      <Title>${config.title}</Title>
-      <Abstract>${config.description || ''}</Abstract>
+      <Name>${escapeXml(id)}</Name>
+      <Title>${escapeXml(config.title)}</Title>
+      <Abstract>${escapeXml(config.description || '')}</Abstract>
       <DefaultSRS>urn:ogc:def:crs:OGC:1.3:CRS84</DefaultSRS>
       <OtherSRS>urn:ogc:def:crs:EPSG::3857</OtherSRS>
       <ows:WGS84BoundingBox>
