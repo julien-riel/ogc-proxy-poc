@@ -10,6 +10,9 @@ export function listCollections(req: Request, res: Response) {
     id,
     title: config.title,
     description: config.description || '',
+    extent: config.extent ? {
+      spatial: { bbox: [config.extent.spatial] },
+    } : undefined,
     links: [
       { href: `${base}/collections/${id}`, rel: 'self', type: 'application/json' },
       { href: `${base}/collections/${id}/items`, rel: 'items', type: 'application/geo+json' },
@@ -36,6 +39,9 @@ export function getCollectionById(req: Request, res: Response) {
     id: collectionId,
     title: config.title,
     description: config.description || '',
+    extent: config.extent ? {
+      spatial: { bbox: [config.extent.spatial] },
+    } : undefined,
     links: [
       { href: `${base}/collections/${collectionId}`, rel: 'self', type: 'application/json' },
       { href: `${base}/collections/${collectionId}/items`, rel: 'items', type: 'application/geo+json' },
