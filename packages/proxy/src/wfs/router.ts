@@ -4,6 +4,7 @@ import { buildCapabilitiesXml, buildCapabilities20Xml } from './capabilities.js'
 import { buildDescribeFeatureType } from './describe.js';
 import { parseGetFeatureGet, parseGetFeaturePost, executeGetFeature } from './get-feature.js';
 import { logger } from '../logger.js';
+import { UpstreamTimeoutError } from '../engine/adapter.js';
 
 function normalizeQuery(query: Record<string, unknown>): Record<string, string> {
   const normalized: Record<string, string> = {};
@@ -49,6 +50,11 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
             if (!result) return res.status(404).json({ error: `Type '${params.typeName}' not found` });
             return res.json(result);
           } catch (err) {
+            if (err instanceof UpstreamTimeoutError) {
+              const log = logger.wfs();
+              log.error({ err }, 'WFS upstream timeout');
+              return res.status(504).json({ error: 'Upstream request timed out' });
+            }
             const log = logger.wfs();
             log.error({ err, query }, 'WFS GetFeature failed');
             const message = err instanceof Error ? err.message : 'Unknown error';
@@ -72,6 +78,11 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
       if (!result) return res.status(404).json({ error: `Type '${params.typeName}' not found` });
       return res.json(result);
     } catch (err) {
+      if (err instanceof UpstreamTimeoutError) {
+        const log = logger.wfs();
+        log.error({ err }, 'WFS upstream timeout');
+        return res.status(504).json({ error: 'Upstream request timed out' });
+      }
       const log = logger.wfs();
       log.error({ err }, 'WFS GetFeature POST failed');
       const message = err instanceof Error ? err.message : 'Unknown error';

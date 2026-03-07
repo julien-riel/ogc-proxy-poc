@@ -21,11 +21,22 @@ export class UpstreamError extends Error {
   }
 }
 
-async function fetchJson(url: string): Promise<Record<string, unknown>> {
+export class UpstreamTimeoutError extends Error {
+  constructor(public readonly url: string, public readonly timeoutMs: number) {
+    super(`Upstream timeout after ${timeoutMs}ms`);
+  }
+}
+
+const DEFAULT_TIMEOUT_MS = 15_000;
+
+async function fetchJson(url: string, timeoutMs?: number): Promise<Record<string, unknown>> {
   const log = logger.adapter();
   const start = Date.now();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs ?? DEFAULT_TIMEOUT_MS);
+
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: controller.signal });
     const durationMs = Date.now() - start;
     log.info({ url, status: response.status, durationMs }, `upstream ${response.status} in ${durationMs}ms`);
     if (!response.ok) {
@@ -35,8 +46,14 @@ async function fetchJson(url: string): Promise<Record<string, unknown>> {
   } catch (err) {
     if (err instanceof UpstreamError) throw err;
     const durationMs = Date.now() - start;
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      log.error({ url, durationMs, timeoutMs: timeoutMs ?? DEFAULT_TIMEOUT_MS }, 'upstream timeout');
+      throw new UpstreamTimeoutError(url, timeoutMs ?? DEFAULT_TIMEOUT_MS);
+    }
     log.error({ url, durationMs, err }, 'upstream fetch failed');
     throw err;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -67,7 +84,7 @@ async function fetchOffsetLimit(config: CollectionConfig, params: FetchParams): 
   url.searchParams.set(pagination.limitParam, String(params.limit));
   applyExtraParams(url, params);
 
-  const body = await fetchJson(url.toString());
+  const body = await fetchJson(url.toString(), config.timeout);
   return { items: extractItems(body, config), total: extractTotal(body, config) };
 }
 
@@ -80,7 +97,7 @@ async function fetchPageBased(config: CollectionConfig, params: FetchParams): Pr
   url.searchParams.set(pagination.pageSizeParam, String(params.limit));
   applyExtraParams(url, params);
 
-  const body = await fetchJson(url.toString());
+  const body = await fetchJson(url.toString(), config.timeout);
   return { items: extractItems(body, config), total: extractTotal(body, config) };
 }
 
@@ -102,7 +119,7 @@ async function fetchCursorBased(config: CollectionConfig, params: FetchParams): 
     }
     applyExtraParams(url, params);
 
-    const body = await fetchJson(url.toString());
+    const body = await fetchJson(url.toString(), config.timeout);
     const items = extractItems(body, config);
     collected.push(...items);
 
@@ -131,8 +148,12 @@ async function fetchWfsUpstream(config: CollectionConfig, params: FetchParams): 
   );
 
   const start = Date.now();
+  const timeoutMs = config.timeout ?? DEFAULT_TIMEOUT_MS;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: controller.signal });
     const durationMs = Date.now() - start;
     log.info({ url, status: response.status, durationMs }, `upstream WFS ${response.status} in ${durationMs}ms`);
     if (!response.ok) {
@@ -146,8 +167,14 @@ async function fetchWfsUpstream(config: CollectionConfig, params: FetchParams): 
   } catch (err) {
     if (err instanceof UpstreamError) throw err;
     const durationMs = Date.now() - start;
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      log.error({ url, durationMs, timeoutMs }, 'upstream WFS timeout');
+      throw new UpstreamTimeoutError(url, timeoutMs);
+    }
     log.error({ url, durationMs, err }, 'upstream WFS fetch failed');
     throw err;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -176,6 +203,6 @@ export async function fetchUpstreamItem(
   itemId: string,
 ): Promise<Record<string, unknown>> {
   const url = `${config.upstream.baseUrl}/${itemId}`;
-  const body = await fetchJson(url);
+  const body = await fetchJson(url, config.timeout);
   return getByPath(body, config.upstream.responseMapping.item) as Record<string, unknown>;
 }

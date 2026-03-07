@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { getCollection, getCollectionPlugin } from '../engine/registry.js';
 import { getRegistry } from '../engine/registry.js';
-import { fetchUpstreamItems, fetchUpstreamItem, UpstreamError } from '../engine/adapter.js';
+import { fetchUpstreamItems, fetchUpstreamItem, UpstreamError, UpstreamTimeoutError } from '../engine/adapter.js';
 import { buildFeatureCollection, buildFeature } from '../engine/geojson-builder.js';
 import { applyLimits } from '../engine/limits.js';
 import type { LimitsResult } from '../engine/limits.js';
@@ -335,6 +335,11 @@ export async function getItems(req: Request, res: Response) {
     res.set('Content-Type', 'application/geo+json');
     res.json(fc);
   } catch (err) {
+    if (err instanceof UpstreamTimeoutError) {
+      const log = logger.items();
+      log.error({ err, collectionId }, 'upstream timeout');
+      return res.status(504).json({ code: 'GatewayTimeout', description: 'Upstream request timed out' });
+    }
     const log = logger.items();
     log.error({ err, collectionId, query: req.query }, 'getItems failed');
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -383,6 +388,11 @@ export async function getItem(req: Request, res: Response) {
   } catch (err) {
     if (err instanceof UpstreamError && err.statusCode === 404) {
       return res.status(404).json({ code: 'NotFound', description: `Feature '${featureId}' not found` });
+    }
+    if (err instanceof UpstreamTimeoutError) {
+      const log = logger.items();
+      log.error({ err, collectionId }, 'upstream timeout');
+      return res.status(504).json({ code: 'GatewayTimeout', description: 'Upstream request timed out' });
     }
     const log = logger.items();
     log.error({ err, collectionId, featureId }, 'getItem failed');
