@@ -4,28 +4,23 @@ services:
       context: ./packages/mock-api
     ports:
       - "3001:3001"
+    environment:
+      PORT: "3001"
 
   proxy:
     build:
       context: ./packages/proxy
     ports:
       - "3000:3000"
-    environment:
-      - UPSTREAM_HOST=http://mock-api:3001
     depends_on:
       - mock-api
+    environment:
+      PORT: "3000"
+      UPSTREAM_HOST: "http://mock-api:3001"
 
   mapstore:
-    image: geosolutionsit/mapstore2:latest
-    depends_on:
-      - proxy
-
-  gateway:
-    image: nginx:alpine
+    image: geosolutionsit/mapstore2
     ports:
-      - "8080:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - "8080:8080"
     depends_on:
       - proxy
-      - mapstore
