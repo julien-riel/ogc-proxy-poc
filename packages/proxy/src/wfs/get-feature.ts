@@ -150,8 +150,10 @@ export async function executeGetFeature(params: WfsGetFeatureParams) {
   }
 
   // Fetch more items when filtering post-fetch to avoid under-filling
+  const DEFAULT_MAX_POST_FETCH_ITEMS = 5000;
+  const maxPostFetch = config.maxPostFetchItems ?? DEFAULT_MAX_POST_FETCH_ITEMS;
   const fetchLimit = params.filterNode
-    ? params.maxFeatures * 10
+    ? Math.min(params.maxFeatures * 10, maxPostFetch)
     : params.maxFeatures;
 
   const upstream = await fetchUpstreamItems(config, {

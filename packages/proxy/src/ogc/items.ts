@@ -266,6 +266,15 @@ export async function getItems(req: Request, res: Response) {
 
   const { limit, offset, bbox, cqlAst, filterStr, upstreamParams, postFetchSimpleAst, queryParams, limits } = parsed;
 
+  // Cap post-fetch multiplier
+  const registry = getRegistry();
+  const DEFAULT_MAX_POST_FETCH_ITEMS = 5000;
+  const maxPostFetch = config.maxPostFetchItems ?? registry.defaults?.maxPostFetchItems ?? DEFAULT_MAX_POST_FETCH_ITEMS;
+  const needsPostFetch = !!(cqlAst || postFetchSimpleAst);
+  const fetchLimit = needsPostFetch
+    ? Math.min(limit * 10, maxPostFetch)
+    : limit;
+
   // Load plugin
   const plugin = await getCollectionPlugin(collectionId);
 
@@ -286,7 +295,7 @@ export async function getItems(req: Request, res: Response) {
     // Fetch upstream
     const upstream = await fetchUpstreamItems(config, {
       offset: ogcReq.offset,
-      limit: ogcReq.limit,
+      limit: fetchLimit,
       bbox: ogcReq.bbox,
       upstreamParams,
     });
@@ -314,6 +323,10 @@ export async function getItems(req: Request, res: Response) {
 
     // Apply post-fetch filters
     features = applyPostFilters(features, bbox, cqlAst, postFetchSimpleAst, config.upstream.type === 'wfs');
+
+    if (needsPostFetch && features.length < limit) {
+      res.set('OGC-Warning', 'Post-fetch filter may have limited results');
+    }
 
     // Build response
     let fc = buildFeatureCollection(
