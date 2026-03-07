@@ -2,6 +2,11 @@ import type { Feature } from 'geojson';
 import type { CqlNode } from './types.js';
 import booleanIntersects from '@turf/boolean-intersects';
 import booleanWithin from '@turf/boolean-within';
+import booleanContains from '@turf/boolean-contains';
+import booleanCrosses from '@turf/boolean-crosses';
+import booleanTouches from '@turf/boolean-touches';
+import booleanDisjoint from '@turf/boolean-disjoint';
+import booleanEqual from '@turf/boolean-equal';
 import turfDistance from '@turf/distance';
 import { point as turfPoint } from '@turf/helpers';
 
@@ -95,6 +100,21 @@ export function evaluateFilter(node: CqlNode, feature: Feature): boolean {
           );
           return d <= threshold;
         }
+
+        case 'S_CONTAINS':
+          return booleanContains(feature, node.geometry as any);
+
+        case 'S_CROSSES':
+          return booleanCrosses(feature, node.geometry as any);
+
+        case 'S_TOUCHES':
+          return booleanTouches(feature, node.geometry as any);
+
+        case 'S_DISJOINT':
+          return booleanDisjoint(feature, node.geometry as any);
+
+        case 'S_EQUALS':
+          return booleanEqual(feature.geometry as any, node.geometry as any);
 
         default:
           return false;

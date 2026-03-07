@@ -62,7 +62,7 @@ class Parser {
     const token = this.peek();
 
     // Spatial function
-    if (token.type === 'KEYWORD' && ['S_INTERSECTS', 'S_WITHIN', 'S_DWITHIN'].includes((token as { value: string }).value)) {
+    if (token.type === 'KEYWORD' && ['S_INTERSECTS', 'S_WITHIN', 'S_DWITHIN', 'S_CONTAINS', 'S_CROSSES', 'S_TOUCHES', 'S_DISJOINT', 'S_EQUALS'].includes((token as { value: string }).value)) {
       return this.parseSpatial();
     }
 

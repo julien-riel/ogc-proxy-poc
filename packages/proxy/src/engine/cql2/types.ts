@@ -54,7 +54,7 @@ export interface CqlIsNull {
 
 export interface CqlSpatial {
   type: 'spatial';
-  operator: 'S_INTERSECTS' | 'S_WITHIN' | 'S_DWITHIN';
+  operator: 'S_INTERSECTS' | 'S_WITHIN' | 'S_DWITHIN' | 'S_CONTAINS' | 'S_CROSSES' | 'S_TOUCHES' | 'S_DISJOINT' | 'S_EQUALS';
   property: string;
   geometry: GeoJSON.Geometry;
   distance?: number;
