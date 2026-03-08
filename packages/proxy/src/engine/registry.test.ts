@@ -58,6 +58,40 @@ describe('Registry', () => {
     expect(plugin).toBeNull();
   });
 
+  it('loads config from CONFIG_PATH env var', () => {
+    const tmpPath = resolve(tmpdir(), `registry-ext-${Date.now()}.yaml`);
+    writeFileSync(
+      tmpPath,
+      stringify({
+        collections: {
+          external: {
+            title: 'External Collection',
+            upstream: {
+              baseUrl: 'https://example.com/api',
+              method: 'GET',
+              pagination: { type: 'offset-limit', offsetParam: 'offset', limitParam: 'limit' },
+              responseMapping: { items: 'data', total: null, item: 'data' },
+            },
+            geometry: { type: 'Point', xField: 'x', yField: 'y' },
+            idField: 'id',
+            properties: [],
+          },
+        },
+      }),
+      'utf-8',
+    );
+
+    process.env.CONFIG_PATH = tmpPath;
+    try {
+      const registry = loadRegistry();
+      expect(registry.collections['external']).toBeDefined();
+      expect(registry.collections['external'].title).toBe('External Collection');
+    } finally {
+      delete process.env.CONFIG_PATH;
+      unlinkSync(tmpPath);
+    }
+  });
+
   it('should parse security config from YAML', () => {
     const config = loadRegistry(resolve(__dirname, '../config/collections.yaml'));
     expect(config.security).toBeDefined();

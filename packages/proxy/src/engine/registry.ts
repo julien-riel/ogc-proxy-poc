@@ -24,7 +24,7 @@ function substituteEnvVars(value: unknown): unknown {
 let registry: RegistryConfig | null = null;
 
 export function loadRegistry(configPath?: string): RegistryConfig {
-  const path = configPath || resolve(__dirname, '../config/collections.yaml');
+  const path = configPath || process.env.CONFIG_PATH || resolve(__dirname, '../config/collections.yaml');
   const raw = readFileSync(path, 'utf-8');
   const parsed = parse(raw);
   const substituted = substituteEnvVars(parsed);
