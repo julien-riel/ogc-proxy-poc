@@ -7,7 +7,7 @@
 
 ## Contexte
 
-La Phase 1 (POC) est completee et validee : OGC API Features + WFS fonctionnels avec QGIS et MapStore, 3 collections mock (Points, LineStrings, Polygons), 3 strategies de pagination, bbox cote client.
+La Phase 1 est completee et validee : OGC API Features + WFS fonctionnels avec QGIS et MapStore, 3 collections mock (Points, LineStrings, Polygons), 3 strategies de pagination, bbox cote client.
 
 La Phase 2 ajoute les filtres, operations spatiales, tri, systeme de plugins et une collection WFS upstream reelle. La Phase 3 ajoute l'authentification OAuth2/OpenID Connect.
 
@@ -252,7 +252,7 @@ Plugin `wfs-upstream` (built-in reutilisable) :
 - `transformUpstreamResponse` : parse GeoJSON (outputFormat=application/json)
 - `skipGeojsonBuilder: true`
 
-### 8. Collections finales du POC
+### 8. Collections finales du projet
 
 | Collection | Upstream | Geometrie | Plugin |
 |---|---|---|---|

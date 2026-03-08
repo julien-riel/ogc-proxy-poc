@@ -1,4 +1,4 @@
-# Design — POC OGC Proxy
+# Design — OGC Proxy
 
 **Date :** 2026-03-04
 **Statut :** Approuvé
@@ -11,7 +11,7 @@ Preuve de concept pour un proxy OGC qui offre une interface GIS commune aux APIs
 
 **Clients cibles :** QGIS (OGC API Features), MapStore (WFS), applications web Angular/React (OGC API Features REST/JSON).
 
-**Périmètre POC :** Authentification JWT optionnelle (desactivee par defaut). Données simulées. Validation bout en bout avec QGIS et MapStore.
+**Périmètre :** Authentification JWT optionnelle (desactivee par defaut). Données simulées. Validation bout en bout avec QGIS et MapStore.
 
 ---
 
@@ -168,12 +168,12 @@ collections:
 
 ### Adapter générique
 
-Le YAML couvre les 3 cas du POC sans adapter custom. L'adapter :
+Le YAML couvre les 3 cas du projet sans adapter custom. L'adapter :
 
 1. **Traduit la pagination OGC (offset/limit) vers le mécanisme upstream :**
    - **offset/limit** : pass-through direct
    - **page/pageSize** : `page = Math.floor(offset / limit) + 1`, `pageSize = limit`
-   - **cursor** : itère les pages cursor depuis le début jusqu'à atteindre l'offset demandé (acceptable pour les petits datasets du POC)
+   - **cursor** : itère les pages cursor depuis le début jusqu'à atteindre l'offset demandé (acceptable pour les petits datasets du projet)
 2. Parse la réponse selon `responseMapping` (chemin vers items et total)
 3. Construit les Features GeoJSON via `geojson-builder` (Point xy, LineString coords, Polygon WKT)
 

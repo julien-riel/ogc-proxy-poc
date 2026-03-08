@@ -1,6 +1,6 @@
 # Conformance Documentation
 
-This is the conformance documentation for the OGC proxy POC. It maps implemented
+This is the conformance documentation for the OGC proxy. It maps implemented
 capabilities to OGC specification requirements and records which conformance
 classes are supported, partially supported, or not yet implemented.
 
@@ -53,7 +53,7 @@ area of the OGC specifications:
 ## Known Limitations
 
 - **No HTML encoding** -- only JSON and GeoJSON responses are supported.
-- **No datetime parameter support** -- the POC does not include temporal data,
+- **No datetime parameter support** -- the project does not include temporal data,
   so the `/req/core/items-datetime-param` requirement is not implemented.
 - **CQL2 JSON encoding not supported** -- only CQL2 text encoding is
   implemented.

@@ -1,4 +1,4 @@
-# OGC Proxy Municipal (POC)
+# OGC Proxy Municipal
 
 Proxy qui expose des APIs REST municipales sous forme de services OGC API Features (Part 1 & 3) et WFS 1.1.0/2.0.0.
 

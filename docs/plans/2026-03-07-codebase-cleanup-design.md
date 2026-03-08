@@ -713,7 +713,7 @@ git commit -m "feat: add Docker Compose and Dockerfiles for local deployment"
 Create `README.md` at root:
 
 ```markdown
-# OGC Proxy POC
+# OGC Proxy Municipal
 
 Proxy that exposes heterogeneous internal REST APIs as OGC API Features and WFS services. Enables consumption by QGIS, MapStore, and web applications (Angular, React) without custom integration per API.
 

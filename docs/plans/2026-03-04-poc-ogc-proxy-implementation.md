@@ -1,4 +1,4 @@
-# OGC Proxy POC — Implementation Plan
+# OGC Proxy Municipal — Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -2867,7 +2867,7 @@ File: `docs/qgis-setup.md`
 
 ## Notes
 
-- Sans authentification pour le POC
+- Sans authentification pour le projet
 - Le CRS est EPSG:4326 (WGS84)
 ```
 
