@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import type Redis from 'ioredis';
+import type { Redis } from 'ioredis';
 import { logger } from '../logger.js';
 
 export interface CacheParams {

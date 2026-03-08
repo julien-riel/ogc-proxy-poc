@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import type Redis from 'ioredis';
+import type { Redis } from 'ioredis';
 import { getCollection, getCollectionPlugin } from '../engine/registry.js';
 import { getRegistry } from '../engine/registry.js';
 import { fetchUpstreamItems, fetchUpstreamItem, UpstreamError, UpstreamTimeoutError } from '../engine/adapter.js';

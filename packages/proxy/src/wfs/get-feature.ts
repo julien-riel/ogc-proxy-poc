@@ -1,5 +1,5 @@
 import { XMLParser } from 'fast-xml-parser';
-import type Redis from 'ioredis';
+import type { Redis } from 'ioredis';
 import { getCollection } from '../engine/registry.js';
 import { fetchUpstreamItems } from '../engine/adapter.js';
 import type { CacheService } from '../engine/cache.js';

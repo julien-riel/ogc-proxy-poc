@@ -11,7 +11,7 @@ export function createAdminRouter(jwtMiddleware: RequestHandler, cache: CacheSer
   const router = Router();
 
   router.delete('/cache/:collectionId', jwtMiddleware, async (req, res) => {
-    const { collectionId } = req.params;
+    const collectionId = req.params.collectionId as string;
     try {
       const keysDeleted = await cache.invalidate(collectionId);
       res.json({ collection: collectionId, keysDeleted });

@@ -1,4 +1,4 @@
-import type Redis from 'ioredis';
+import type { Redis } from 'ioredis';
 import type { CollectionConfig } from './types.js';
 import type { CacheService } from './cache.js';
 import { getByPath } from './geojson-builder.js';

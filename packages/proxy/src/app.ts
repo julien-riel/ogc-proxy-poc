@@ -49,7 +49,8 @@ export async function createApp() {
     ...(redis
       ? {
           store: new RedisStore({
-            sendCommand: (...args: string[]) => redis.call(...args) as any,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            sendCommand: (...args: string[]) => (redis as any).call(...args),
             prefix: `${getKeyPrefix()}rl:client:`,
           }),
         }

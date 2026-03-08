@@ -1,5 +1,5 @@
 import { Router, type RequestHandler } from 'express';
-import type Redis from 'ioredis';
+import type { Redis } from 'ioredis';
 import express from 'express';
 import { buildCapabilitiesXml, buildCapabilities20Xml } from './capabilities.js';
 import { buildDescribeFeatureType } from './describe.js';
