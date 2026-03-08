@@ -21,7 +21,7 @@ function parseWkt(wkt: string): GeoJSON.Geometry {
 
   const polygonMatch = trimmed.match(/^POLYGON\s*\(\((.+)\)\)$/i);
   if (polygonMatch) {
-    const ring = polygonMatch[1].split(',').map(pair => {
+    const ring = polygonMatch[1].split(',').map((pair) => {
       const [x, y] = pair.trim().split(/\s+/).map(Number);
       return [x, y];
     });
@@ -97,10 +97,7 @@ interface OgcFeatureCollection {
   timeStamp: string;
 }
 
-export function buildFeatureCollection(
-  features: GeoJSON.Feature[],
-  ctx: PaginationContext,
-): OgcFeatureCollection {
+export function buildFeatureCollection(features: GeoJSON.Feature[], ctx: PaginationContext): OgcFeatureCollection {
   const itemsUrl = `${ctx.baseUrl}/collections/${ctx.collectionId}/items`;
 
   const links: Array<{ href: string; rel: string; type: string }> = [

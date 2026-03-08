@@ -22,9 +22,7 @@ describe('OGC API — Landing Page (/ogc/)', () => {
 
   it('has service-desc or service-doc link', async () => {
     const { body } = await fetchJson('/ogc/');
-    const hasServiceLink = body.links.some(
-      (l: any) => l.rel === 'service-desc' || l.rel === 'service-doc'
-    );
+    const hasServiceLink = body.links.some((l: any) => l.rel === 'service-desc' || l.rel === 'service-doc');
     expect(hasServiceLink).toBe(true);
   });
 

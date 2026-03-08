@@ -66,16 +66,12 @@ describe('CQL2 Evaluator', () => {
 
   describe('Spatial — S_INTERSECTS', () => {
     it('matches a point inside a polygon', () => {
-      const ast = parseCql2(
-        'S_INTERSECTS(geometry,POLYGON((-74 45,-73 45,-73 46,-74 46,-74 45)))'
-      );
+      const ast = parseCql2('S_INTERSECTS(geometry,POLYGON((-74 45,-73 45,-73 46,-74 46,-74 45)))');
       expect(evaluateFilter(ast, makePoint(-73.5, 45.5))).toBe(true);
     });
 
     it('rejects a point outside a polygon', () => {
-      const ast = parseCql2(
-        'S_INTERSECTS(geometry,POLYGON((-74 45,-73 45,-73 46,-74 46,-74 45)))'
-      );
+      const ast = parseCql2('S_INTERSECTS(geometry,POLYGON((-74 45,-73 45,-73 46,-74 46,-74 45)))');
       expect(evaluateFilter(ast, makePoint(-75, 45.5))).toBe(false);
     });
   });

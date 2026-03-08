@@ -20,12 +20,7 @@ export async function createJwtMiddleware(config: JwtConfig | undefined): Promis
   const { createLogger } = await import('@villedemontreal/logger');
   const { correlationIdService } = await import('@villedemontreal/correlation-id');
 
-  init(
-    createLogger,
-    () => correlationIdService.getId(),
-    config.host,
-    config.endpoint
-  );
+  init(createLogger, () => correlationIdService.getId(), config.host, config.endpoint);
 
   return jwtValidationMiddleware();
 }

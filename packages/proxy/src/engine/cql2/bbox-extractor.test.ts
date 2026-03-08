@@ -4,17 +4,13 @@ import { parseCql2 } from './parser.js';
 
 describe('extractBboxFromAst', () => {
   it('extracts bbox from S_INTERSECTS with POLYGON', () => {
-    const ast = parseCql2(
-      'S_INTERSECTS(geometry,POLYGON((-74 45,-73 45,-73 46,-74 46,-74 45)))'
-    );
+    const ast = parseCql2('S_INTERSECTS(geometry,POLYGON((-74 45,-73 45,-73 46,-74 46,-74 45)))');
     const bbox = extractBboxFromAst(ast);
     expect(bbox).toEqual([-74, 45, -73, 46]);
   });
 
   it('extracts bbox from S_WITHIN with POLYGON', () => {
-    const ast = parseCql2(
-      'S_WITHIN(geometry,POLYGON((-73.6 45.4,-73.5 45.4,-73.5 45.5,-73.6 45.5,-73.6 45.4)))'
-    );
+    const ast = parseCql2('S_WITHIN(geometry,POLYGON((-73.6 45.4,-73.5 45.4,-73.5 45.5,-73.6 45.5,-73.6 45.4)))');
     const bbox = extractBboxFromAst(ast);
     expect(bbox).toEqual([-73.6, 45.4, -73.5, 45.5]);
   });
@@ -33,9 +29,7 @@ describe('extractBboxFromAst', () => {
   });
 
   it('extracts bbox from spatial inside AND', () => {
-    const ast = parseCql2(
-      "etat='actif' AND S_INTERSECTS(geometry,POLYGON((-74 45,-73 45,-73 46,-74 46,-74 45)))"
-    );
+    const ast = parseCql2("etat='actif' AND S_INTERSECTS(geometry,POLYGON((-74 45,-73 45,-73 46,-74 46,-74 45)))");
     const bbox = extractBboxFromAst(ast);
     expect(bbox).toEqual([-74, 45, -73, 46]);
   });

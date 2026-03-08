@@ -1,5 +1,9 @@
 import { createLogger, initLogger, LoggerConfigs, LogLevel } from '@villedemontreal/logger';
-import { correlationIdService, createCorrelationIdMiddleware, init as initCorrelationId } from '@villedemontreal/correlation-id';
+import {
+  correlationIdService,
+  createCorrelationIdMiddleware,
+  init as initCorrelationId,
+} from '@villedemontreal/correlation-id';
 
 let initialized = false;
 

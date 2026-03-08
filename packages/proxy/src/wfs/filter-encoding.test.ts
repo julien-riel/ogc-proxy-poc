@@ -410,13 +410,15 @@ describe('parseFilterXml', () => {
         property: 'geom',
         geometry: {
           type: 'Polygon',
-          coordinates: [[
-            [-73.6, 45.4],
-            [-73.5, 45.4],
-            [-73.5, 45.5],
-            [-73.6, 45.5],
-            [-73.6, 45.4],
-          ]],
+          coordinates: [
+            [
+              [-73.6, 45.4],
+              [-73.5, 45.4],
+              [-73.5, 45.5],
+              [-73.6, 45.5],
+              [-73.6, 45.4],
+            ],
+          ],
         },
       });
     });
@@ -431,10 +433,12 @@ describe('parseFilterXml', () => {
           },
         },
       });
-      expect(result).toEqual(expect.objectContaining({
-        type: 'spatial',
-        property: 'the_geom',
-      }));
+      expect(result).toEqual(
+        expect.objectContaining({
+          type: 'spatial',
+          property: 'the_geom',
+        }),
+      );
     });
 
     it('throws on BBOX without valid geometry', () => {
@@ -480,7 +484,15 @@ describe('parseFilterXml', () => {
         property: 'geom',
         geometry: {
           type: 'Polygon',
-          coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
+          coordinates: [
+            [
+              [0, 0],
+              [1, 0],
+              [1, 1],
+              [0, 1],
+              [0, 0],
+            ],
+          ],
         },
       });
     });
@@ -492,10 +504,12 @@ describe('parseFilterXml', () => {
           Point: { pos: '1 2' },
         },
       });
-      expect(result).toEqual(expect.objectContaining({
-        type: 'spatial',
-        operator: 'S_CONTAINS',
-      }));
+      expect(result).toEqual(
+        expect.objectContaining({
+          type: 'spatial',
+          operator: 'S_CONTAINS',
+        }),
+      );
     });
 
     it('parses Crosses spatial op', () => {
@@ -505,10 +519,12 @@ describe('parseFilterXml', () => {
           Point: { pos: '1 2' },
         },
       });
-      expect(result).toEqual(expect.objectContaining({
-        type: 'spatial',
-        operator: 'S_CROSSES',
-      }));
+      expect(result).toEqual(
+        expect.objectContaining({
+          type: 'spatial',
+          operator: 'S_CROSSES',
+        }),
+      );
     });
 
     it('parses Touches spatial op', () => {
@@ -518,10 +534,12 @@ describe('parseFilterXml', () => {
           Point: { pos: '1 2' },
         },
       });
-      expect(result).toEqual(expect.objectContaining({
-        type: 'spatial',
-        operator: 'S_TOUCHES',
-      }));
+      expect(result).toEqual(
+        expect.objectContaining({
+          type: 'spatial',
+          operator: 'S_TOUCHES',
+        }),
+      );
     });
 
     it('parses Disjoint spatial op', () => {
@@ -531,10 +549,12 @@ describe('parseFilterXml', () => {
           Point: { pos: '1 2' },
         },
       });
-      expect(result).toEqual(expect.objectContaining({
-        type: 'spatial',
-        operator: 'S_DISJOINT',
-      }));
+      expect(result).toEqual(
+        expect.objectContaining({
+          type: 'spatial',
+          operator: 'S_DISJOINT',
+        }),
+      );
     });
 
     it('parses Equals spatial op', () => {
@@ -544,16 +564,20 @@ describe('parseFilterXml', () => {
           Point: { pos: '1 2' },
         },
       });
-      expect(result).toEqual(expect.objectContaining({
-        type: 'spatial',
-        operator: 'S_EQUALS',
-      }));
+      expect(result).toEqual(
+        expect.objectContaining({
+          type: 'spatial',
+          operator: 'S_EQUALS',
+        }),
+      );
     });
 
     it('throws on spatial op with invalid geometry', () => {
-      expect(() => parseFilterXml({
-        Intersects: { PropertyName: 'geom' },
-      })).toThrow('Invalid geometry in S_INTERSECTS filter');
+      expect(() =>
+        parseFilterXml({
+          Intersects: { PropertyName: 'geom' },
+        }),
+      ).toThrow('Invalid geometry in S_INTERSECTS filter');
     });
 
     it('uses PropertyName when provided in spatial op', () => {
@@ -563,9 +587,11 @@ describe('parseFilterXml', () => {
           Point: { pos: '1 2' },
         },
       });
-      expect(result).toEqual(expect.objectContaining({
-        property: 'the_geom',
-      }));
+      expect(result).toEqual(
+        expect.objectContaining({
+          property: 'the_geom',
+        }),
+      );
     });
   });
 
@@ -577,12 +603,14 @@ describe('parseFilterXml', () => {
           Point: { coordinates: '-73.5,45.5' },
         },
       });
-      expect(result).toEqual(expect.objectContaining({
-        geometry: {
-          type: 'Point',
-          coordinates: [-73.5, 45.5],
-        },
-      }));
+      expect(result).toEqual(
+        expect.objectContaining({
+          geometry: {
+            type: 'Point',
+            coordinates: [-73.5, 45.5],
+          },
+        }),
+      );
     });
 
     it('parses Polygon with outerBoundaryIs', () => {
@@ -598,12 +626,22 @@ describe('parseFilterXml', () => {
           },
         },
       });
-      expect(result).toEqual(expect.objectContaining({
-        geometry: {
-          type: 'Polygon',
-          coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
-        },
-      }));
+      expect(result).toEqual(
+        expect.objectContaining({
+          geometry: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [0, 0],
+                [1, 0],
+                [1, 1],
+                [0, 1],
+                [0, 0],
+              ],
+            ],
+          },
+        }),
+      );
     });
 
     it('parses Envelope into a closed polygon', () => {

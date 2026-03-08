@@ -16,9 +16,7 @@ function substituteEnvVars(value: unknown): unknown {
     return value.map(substituteEnvVars);
   }
   if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value).map(([k, v]) => [k, substituteEnvVars(v)])
-    );
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, substituteEnvVars(v)]));
   }
   return value;
 }

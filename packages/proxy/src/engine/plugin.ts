@@ -74,11 +74,7 @@ type HookName = keyof Omit<CollectionPlugin, 'skipGeojsonBuilder'>;
 /**
  * Run a plugin hook if it exists, otherwise return input unchanged.
  */
-export async function runHook<T>(
-  plugin: CollectionPlugin | null,
-  hookName: HookName,
-  input: T,
-): Promise<T> {
+export async function runHook<T>(plugin: CollectionPlugin | null, hookName: HookName, input: T): Promise<T> {
   if (!plugin) return input;
   const hook = plugin[hookName] as ((input: T) => Promise<T>) | undefined;
   if (!hook) return input;

@@ -6,9 +6,7 @@ const GET_FEATURE_URL = `${BASE_URL}/wfs?service=WFS&version=2.0.0&request=GetFe
 describe('WFS 2.0.0 — GetFeature', () => {
   describe('GET', () => {
     it('supports count parameter (count=3)', async () => {
-      const res = await fetch(
-        `${GET_FEATURE_URL}&typeNames=bornes-fontaines&count=3`
-      );
+      const res = await fetch(`${GET_FEATURE_URL}&typeNames=bornes-fontaines&count=3`);
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.type).toBe('FeatureCollection');
@@ -16,9 +14,7 @@ describe('WFS 2.0.0 — GetFeature', () => {
     });
 
     it('supports typeNames parameter plural form', async () => {
-      const res = await fetch(
-        `${GET_FEATURE_URL}&typeNames=bornes-fontaines&count=2`
-      );
+      const res = await fetch(`${GET_FEATURE_URL}&typeNames=bornes-fontaines&count=2`);
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.type).toBe('FeatureCollection');
@@ -26,32 +22,24 @@ describe('WFS 2.0.0 — GetFeature', () => {
     });
 
     it('includes numberMatched and numberReturned', async () => {
-      const res = await fetch(
-        `${GET_FEATURE_URL}&typeNames=bornes-fontaines&count=5`
-      );
+      const res = await fetch(`${GET_FEATURE_URL}&typeNames=bornes-fontaines&count=5`);
       const body = await res.json();
       expect(body.numberMatched).toBeDefined();
       expect(body.numberReturned).toBe(5);
     });
 
     it('supports startIndex pagination', async () => {
-      const res1 = await fetch(
-        `${GET_FEATURE_URL}&typeNames=bornes-fontaines&count=2&startIndex=0`
-      );
+      const res1 = await fetch(`${GET_FEATURE_URL}&typeNames=bornes-fontaines&count=2&startIndex=0`);
       const body1 = await res1.json();
 
-      const res2 = await fetch(
-        `${GET_FEATURE_URL}&typeNames=bornes-fontaines&count=2&startIndex=2`
-      );
+      const res2 = await fetch(`${GET_FEATURE_URL}&typeNames=bornes-fontaines&count=2&startIndex=2`);
       const body2 = await res2.json();
 
       expect(body1.features[0].id).not.toBe(body2.features[0].id);
     });
 
     it('supports resultType=hits (0 features, numberMatched > 0)', async () => {
-      const res = await fetch(
-        `${GET_FEATURE_URL}&typeNames=bornes-fontaines&resultType=hits`
-      );
+      const res = await fetch(`${GET_FEATURE_URL}&typeNames=bornes-fontaines&resultType=hits`);
       const body = await res.json();
       expect(body.features).toHaveLength(0);
       expect(body.numberMatched).toBeGreaterThan(0);

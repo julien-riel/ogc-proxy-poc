@@ -19,7 +19,9 @@ describe('createJwtMiddleware', () => {
     let nextCalled = false;
     const req = {} as any;
     const res = {} as any;
-    const next = () => { nextCalled = true; };
+    const next = () => {
+      nextCalled = true;
+    };
 
     middleware(req, res, next);
     expect(nextCalled).toBe(true);
@@ -31,12 +33,13 @@ describe('createJwtMiddleware', () => {
     let nextCalled = false;
     const req = {} as any;
     const res = {} as any;
-    const next = () => { nextCalled = true; };
+    const next = () => {
+      nextCalled = true;
+    };
 
     middleware(req, res, next);
     expect(nextCalled).toBe(true);
   });
-
 });
 
 describe('createJwtMiddleware — enabled', () => {
@@ -45,8 +48,9 @@ describe('createJwtMiddleware — enabled', () => {
   });
 
   it('throws if host is missing', async () => {
-    await expect(createJwtMiddleware({ enabled: true, host: '' }))
-      .rejects.toThrow('JWT is enabled but jwt.host is not configured');
+    await expect(createJwtMiddleware({ enabled: true, host: '' })).rejects.toThrow(
+      'JWT is enabled but jwt.host is not configured',
+    );
   });
 
   it('calls init with correct args when enabled with a valid host', async () => {
@@ -56,12 +60,7 @@ describe('createJwtMiddleware — enabled', () => {
     await createJwtMiddleware({ enabled: true, host: 'https://auth.example.com' });
 
     expect(init).toHaveBeenCalledOnce();
-    expect(init).toHaveBeenCalledWith(
-      createLogger,
-      expect.any(Function),
-      'https://auth.example.com',
-      undefined
-    );
+    expect(init).toHaveBeenCalledWith(createLogger, expect.any(Function), 'https://auth.example.com', undefined);
   });
 
   it('passes both host and endpoint to init when both are configured', async () => {
@@ -75,12 +74,7 @@ describe('createJwtMiddleware — enabled', () => {
     });
 
     expect(init).toHaveBeenCalledOnce();
-    expect(init).toHaveBeenCalledWith(
-      createLogger,
-      expect.any(Function),
-      'https://auth.example.com',
-      '/jwks'
-    );
+    expect(init).toHaveBeenCalledWith(createLogger, expect.any(Function), 'https://auth.example.com', '/jwks');
   });
 
   it('returns a callable middleware that calls next()', async () => {
@@ -92,7 +86,9 @@ describe('createJwtMiddleware — enabled', () => {
     let nextCalled = false;
     const req = {} as any;
     const res = {} as any;
-    const next = () => { nextCalled = true; };
+    const next = () => {
+      nextCalled = true;
+    };
 
     middleware(req, res, next);
     expect(nextCalled).toBe(true);

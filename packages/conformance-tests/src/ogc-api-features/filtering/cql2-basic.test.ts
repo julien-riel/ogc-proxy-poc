@@ -58,9 +58,7 @@ describe('CQL2 Basic', () => {
   });
 
   it('filters with AND operator', async () => {
-    const { body } = await fetchGeoJson(
-      cql2Url('bornes-fontaines', "etat='actif' AND arrondissement='Verdun'")
-    );
+    const { body } = await fetchGeoJson(cql2Url('bornes-fontaines', "etat='actif' AND arrondissement='Verdun'"));
     for (const f of body.features) {
       expect(f.properties.etat).toBe('actif');
       expect(f.properties.arrondissement).toBe('Verdun');
@@ -69,7 +67,7 @@ describe('CQL2 Basic', () => {
 
   it('filters with OR operator', async () => {
     const { body } = await fetchGeoJson(
-      cql2Url('bornes-fontaines', "arrondissement='Verdun' OR arrondissement='Le Plateau-Mont-Royal'")
+      cql2Url('bornes-fontaines', "arrondissement='Verdun' OR arrondissement='Le Plateau-Mont-Royal'"),
     );
     expect(body.features.length).toBeGreaterThan(0);
     for (const f of body.features) {
@@ -78,9 +76,7 @@ describe('CQL2 Basic', () => {
   });
 
   it('filters with NOT operator', async () => {
-    const { body } = await fetchGeoJson(
-      cql2Url('bornes-fontaines', "NOT etat='actif'")
-    );
+    const { body } = await fetchGeoJson(cql2Url('bornes-fontaines', "NOT etat='actif'"));
     expect(body.features.length).toBeGreaterThan(0);
     for (const f of body.features) {
       expect(f.properties.etat).not.toBe('actif');
@@ -88,24 +84,18 @@ describe('CQL2 Basic', () => {
   });
 
   it('returns 400 for invalid CQL2 syntax', async () => {
-    const { status } = await fetchGeoJson(
-      cql2Url('bornes-fontaines', 'INVALID SYNTAX !!!')
-    );
+    const { status } = await fetchGeoJson(cql2Url('bornes-fontaines', 'INVALID SYNTAX !!!'));
     expect(status).toBe(400);
   });
 
   it('filters with IS NULL', async () => {
-    const { body } = await fetchGeoJson(
-      cql2Url('bornes-fontaines', 'description IS NULL')
-    );
+    const { body } = await fetchGeoJson(cql2Url('bornes-fontaines', 'description IS NULL'));
     // All bornes-fontaines have no 'description' property, so all should match
     expect(body.features.length).toBeGreaterThan(0);
   });
 
   it('filters with IS NOT NULL', async () => {
-    const { body } = await fetchGeoJson(
-      cql2Url('bornes-fontaines', 'etat IS NOT NULL')
-    );
+    const { body } = await fetchGeoJson(cql2Url('bornes-fontaines', 'etat IS NOT NULL'));
     expect(body.features.length).toBeGreaterThan(0);
     for (const f of body.features) {
       expect(f.properties.etat).toBeDefined();

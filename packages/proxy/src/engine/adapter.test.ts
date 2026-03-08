@@ -51,10 +51,13 @@ describe('Adapter', () => {
 
   describe('offset/limit pagination', () => {
     it('passes offset and limit to upstream', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ data: [{ id: 1 }], total: 10 }),
-      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ id: 1 }], total: 10 }),
+        }),
+      );
 
       const result = await fetchUpstreamItems('test-offset', offsetLimitConfig, { offset: 5, limit: 3 });
 
@@ -67,10 +70,13 @@ describe('Adapter', () => {
 
   describe('page/pageSize pagination', () => {
     it('converts offset/limit to page/pageSize', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ results: [{ id: 1 }], count: 8 }),
-      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ results: [{ id: 1 }], count: 8 }),
+        }),
+      );
 
       // offset=6, limit=3 → page=3, pageSize=3
       const result = await fetchUpstreamItems('test-page', pageConfig, { offset: 6, limit: 3 });
@@ -82,10 +88,13 @@ describe('Adapter', () => {
     });
 
     it('page 1 when offset is 0', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ results: [{ id: 1 }], count: 8 }),
-      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ results: [{ id: 1 }], count: 8 }),
+        }),
+      );
 
       await fetchUpstreamItems('test-page', pageConfig, { offset: 0, limit: 5 });
       expect(fetch).toHaveBeenCalledWith(expect.stringContaining('page=1'), expect.any(Object));
@@ -94,10 +103,13 @@ describe('Adapter', () => {
 
   describe('cursor pagination', () => {
     it('fetches first page when offset is 0', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ items: [{ code: 'A' }, { code: 'B' }], nextCursor: 'B' }),
-      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ items: [{ code: 'A' }, { code: 'B' }], nextCursor: 'B' }),
+        }),
+      );
 
       const result = await fetchUpstreamItems('test-cursor', cursorConfig, { offset: 0, limit: 2 });
 
@@ -109,7 +121,8 @@ describe('Adapter', () => {
     });
 
     it('iterates pages to reach offset', async () => {
-      const fetchMock = vi.fn()
+      const fetchMock = vi
+        .fn()
         .mockResolvedValueOnce({
           ok: true,
           json: () => Promise.resolve({ items: [{ code: 'A' }, { code: 'B' }], nextCursor: 'B' }),
@@ -130,10 +143,13 @@ describe('Adapter', () => {
 
   describe('single item', () => {
     it('fetches a single item by id', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ data: { id: 1, name: 'A' } }),
-      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ data: { id: 1, name: 'A' } }),
+        }),
+      );
 
       const result = await fetchUpstreamItem('test-offset', offsetLimitConfig, '1');
       expect(fetch).toHaveBeenCalledWith('http://mock:3001/api/test/1', expect.any(Object));
@@ -143,28 +159,36 @@ describe('Adapter', () => {
 
   describe('error handling', () => {
     it('throws on upstream error', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: false, status: 500, statusText: 'Internal Server Error',
-      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 500,
+          statusText: 'Internal Server Error',
+        }),
+      );
 
-      await expect(fetchUpstreamItems('test-offset', offsetLimitConfig, { offset: 0, limit: 10 }))
-        .rejects.toThrow('Upstream error: 500');
+      await expect(fetchUpstreamItems('test-offset', offsetLimitConfig, { offset: 0, limit: 10 })).rejects.toThrow(
+        'Upstream error: 500',
+      );
     });
   });
 
   describe('upstream validation', () => {
     it('returns empty array when items field is not an array', async () => {
-      vi.stubGlobal('fetch', vi.fn(() =>
-        Promise.resolve({ ok: true, json: () => Promise.resolve({ data: 'not-an-array', total: 5 }) })
-      ));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ data: 'not-an-array', total: 5 }) })),
+      );
       const result = await fetchUpstreamItems('test-offset', offsetLimitConfig, { offset: 0, limit: 10 });
       expect(result.items).toEqual([]);
     });
 
     it('returns undefined total when total is NaN', async () => {
-      vi.stubGlobal('fetch', vi.fn(() =>
-        Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [], total: 'bad' }) })
-      ));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [], total: 'bad' }) })),
+      );
       const result = await fetchUpstreamItems('test-offset', offsetLimitConfig, { offset: 0, limit: 10 });
       expect(result.total).toBeUndefined();
     });
@@ -172,19 +196,23 @@ describe('Adapter', () => {
 
   describe('timeout', () => {
     it('throws UpstreamTimeoutError on timeout', async () => {
-      vi.stubGlobal('fetch', vi.fn((_url: string, init?: RequestInit) => {
-        return new Promise((_resolve, reject) => {
-          const onAbort = () => reject(new DOMException('The operation was aborted', 'AbortError'));
-          if (init?.signal?.aborted) {
-            onAbort();
-          } else {
-            init?.signal?.addEventListener('abort', onAbort);
-          }
-        });
-      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((_url: string, init?: RequestInit) => {
+          return new Promise((_resolve, reject) => {
+            const onAbort = () => reject(new DOMException('The operation was aborted', 'AbortError'));
+            if (init?.signal?.aborted) {
+              onAbort();
+            } else {
+              init?.signal?.addEventListener('abort', onAbort);
+            }
+          });
+        }),
+      );
       const configWithTimeout = { ...offsetLimitConfig, timeout: 50 };
-      await expect(fetchUpstreamItems('test-offset', configWithTimeout, { offset: 0, limit: 10 }))
-        .rejects.toThrow('Upstream timeout');
+      await expect(fetchUpstreamItems('test-offset', configWithTimeout, { offset: 0, limit: 10 })).rejects.toThrow(
+        'Upstream timeout',
+      );
     });
   });
 });

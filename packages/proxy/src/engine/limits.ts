@@ -20,11 +20,7 @@ interface CollectionLimits {
   maxFeatures?: number;
 }
 
-export function applyLimits(
-  input: LimitsInput,
-  collection: CollectionLimits,
-  defaults: DefaultsConfig,
-): LimitsResult {
+export function applyLimits(input: LimitsInput, collection: CollectionLimits, defaults: DefaultsConfig): LimitsResult {
   const maxPageSize = collection.maxPageSize ?? defaults.maxPageSize ?? 1000;
   const maxFeatures = collection.maxFeatures ?? defaults.maxFeatures ?? 10000;
 

@@ -11,11 +11,11 @@ router.get('/', (req, res) => {
 
   // Attribute filters
   const { nom } = req.query;
-  if (nom) filtered = filtered.filter(a => a.nom === nom);
+  if (nom) filtered = filtered.filter((a) => a.nom === nom);
 
   let startIndex = 0;
   if (cursor) {
-    const cursorIndex = filtered.findIndex(a => a.code === cursor);
+    const cursorIndex = filtered.findIndex((a) => a.code === cursor);
     startIndex = cursorIndex >= 0 ? cursorIndex + 1 : 0;
   }
 
@@ -27,7 +27,7 @@ router.get('/', (req, res) => {
 });
 
 router.get('/:code', (req, res) => {
-  const item = arrondissements.find(a => a.code === req.params.code);
+  const item = arrondissements.find((a) => a.code === req.params.code);
   if (!item) return res.status(404).json({ error: 'Not found' });
   res.json({ item });
 });

@@ -36,7 +36,7 @@ describe('CQL2 Lexer', () => {
   });
 
   it('tokenizes spatial function call', () => {
-    const tokens = tokenize("S_INTERSECTS(geometry,POINT(-73.5 45.5))");
+    const tokens = tokenize('S_INTERSECTS(geometry,POINT(-73.5 45.5))');
     expect(tokens[0]).toEqual({ type: 'KEYWORD', value: 'S_INTERSECTS' });
     expect(tokens[1]).toEqual({ type: 'LPAREN' });
     expect(tokens[2]).toEqual({ type: 'PROPERTY', value: 'geometry' });

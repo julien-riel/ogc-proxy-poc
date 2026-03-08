@@ -11,16 +11,14 @@ router.get('/', (req, res) => {
 
   // Attribute filters
   const { etat, arrondissement } = req.query;
-  if (etat) filtered = filtered.filter(b => b.etat === etat);
-  if (arrondissement) filtered = filtered.filter(b => b.arrondissement === arrondissement);
+  if (etat) filtered = filtered.filter((b) => b.etat === etat);
+  if (arrondissement) filtered = filtered.filter((b) => b.arrondissement === arrondissement);
 
   // Bbox filter: bbox=minLon,minLat,maxLon,maxLat
   const bboxStr = req.query.bbox as string | undefined;
   if (bboxStr) {
     const [minLon, minLat, maxLon, maxLat] = bboxStr.split(',').map(Number);
-    filtered = filtered.filter(b =>
-      b.x >= minLon && b.x <= maxLon && b.y >= minLat && b.y <= maxLat
-    );
+    filtered = filtered.filter((b) => b.x >= minLon && b.x <= maxLon && b.y >= minLat && b.y <= maxLat);
   }
 
   // Sort support: sort_by=field or sort_by=-field
@@ -42,7 +40,7 @@ router.get('/', (req, res) => {
 });
 
 router.get('/:id', (req, res) => {
-  const item = bornesFontaines.find(b => b.id === parseInt(req.params.id));
+  const item = bornesFontaines.find((b) => b.id === parseInt(req.params.id));
   if (!item) return res.status(404).json({ error: 'Not found' });
   res.json({ data: item });
 });

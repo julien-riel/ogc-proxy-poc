@@ -28,12 +28,15 @@ async function postWfsFilter(typeName: string, filterXml: string, maxFeatures = 
 describe('WFS 1.1.0 — Filter Encoding', () => {
   describe('Comparison filters', () => {
     it('PropertyIsEqualTo filters by exact value', async () => {
-      const { body } = await postWfsFilter('bornes-fontaines', `
+      const { body } = await postWfsFilter(
+        'bornes-fontaines',
+        `
         <ogc:PropertyIsEqualTo>
           <ogc:PropertyName>etat</ogc:PropertyName>
           <ogc:Literal>actif</ogc:Literal>
         </ogc:PropertyIsEqualTo>
-      `);
+      `,
+      );
       expect(body.features.length).toBeGreaterThan(0);
       for (const f of body.features) {
         expect(f.properties.etat).toBe('actif');
@@ -41,12 +44,15 @@ describe('WFS 1.1.0 — Filter Encoding', () => {
     });
 
     it('PropertyIsNotEqualTo excludes matching values', async () => {
-      const { body } = await postWfsFilter('bornes-fontaines', `
+      const { body } = await postWfsFilter(
+        'bornes-fontaines',
+        `
         <ogc:PropertyIsNotEqualTo>
           <ogc:PropertyName>etat</ogc:PropertyName>
           <ogc:Literal>actif</ogc:Literal>
         </ogc:PropertyIsNotEqualTo>
-      `);
+      `,
+      );
       expect(body.features.length).toBeGreaterThan(0);
       for (const f of body.features) {
         expect(f.properties.etat).not.toBe('actif');
@@ -54,12 +60,15 @@ describe('WFS 1.1.0 — Filter Encoding', () => {
     });
 
     it('PropertyIsGreaterThan filters numeric values', async () => {
-      const { body } = await postWfsFilter('arrondissements', `
+      const { body } = await postWfsFilter(
+        'arrondissements',
+        `
         <ogc:PropertyIsGreaterThan>
           <ogc:PropertyName>population</ogc:PropertyName>
           <ogc:Literal>100000</ogc:Literal>
         </ogc:PropertyIsGreaterThan>
-      `);
+      `,
+      );
       expect(body.features.length).toBeGreaterThan(0);
       for (const f of body.features) {
         expect(f.properties.population).toBeGreaterThan(100000);
@@ -67,12 +76,15 @@ describe('WFS 1.1.0 — Filter Encoding', () => {
     });
 
     it('PropertyIsLike filters with wildcards', async () => {
-      const { body } = await postWfsFilter('bornes-fontaines', `
+      const { body } = await postWfsFilter(
+        'bornes-fontaines',
+        `
         <ogc:PropertyIsLike wildCard="*" singleChar="?" escapeChar="\\">
           <ogc:PropertyName>arrondissement</ogc:PropertyName>
           <ogc:Literal>V*</ogc:Literal>
         </ogc:PropertyIsLike>
-      `);
+      `,
+      );
       expect(body.features.length).toBeGreaterThan(0);
       for (const f of body.features) {
         expect(f.properties.arrondissement).toMatch(/^V/);
@@ -80,13 +92,16 @@ describe('WFS 1.1.0 — Filter Encoding', () => {
     });
 
     it('PropertyIsBetween filters numeric range', async () => {
-      const { body } = await postWfsFilter('arrondissements', `
+      const { body } = await postWfsFilter(
+        'arrondissements',
+        `
         <ogc:PropertyIsBetween>
           <ogc:PropertyName>population</ogc:PropertyName>
           <ogc:LowerBoundary><ogc:Literal>70000</ogc:Literal></ogc:LowerBoundary>
           <ogc:UpperBoundary><ogc:Literal>100000</ogc:Literal></ogc:UpperBoundary>
         </ogc:PropertyIsBetween>
-      `);
+      `,
+      );
       expect(body.features.length).toBeGreaterThan(0);
       for (const f of body.features) {
         expect(f.properties.population).toBeGreaterThanOrEqual(70000);
@@ -97,7 +112,9 @@ describe('WFS 1.1.0 — Filter Encoding', () => {
 
   describe('Logical filters', () => {
     it('And combines two conditions', async () => {
-      const { body } = await postWfsFilter('bornes-fontaines', `
+      const { body } = await postWfsFilter(
+        'bornes-fontaines',
+        `
         <ogc:And>
           <ogc:PropertyIsEqualTo>
             <ogc:PropertyName>etat</ogc:PropertyName>
@@ -108,7 +125,8 @@ describe('WFS 1.1.0 — Filter Encoding', () => {
             <ogc:Literal>Verdun</ogc:Literal>
           </ogc:PropertyIsEqualTo>
         </ogc:And>
-      `);
+      `,
+      );
       expect(body.features.length).toBeGreaterThan(0);
       for (const f of body.features) {
         expect(f.properties.etat).toBe('actif');
@@ -117,7 +135,9 @@ describe('WFS 1.1.0 — Filter Encoding', () => {
     });
 
     it('Or matches either condition', async () => {
-      const { body } = await postWfsFilter('bornes-fontaines', `
+      const { body } = await postWfsFilter(
+        'bornes-fontaines',
+        `
         <ogc:Or>
           <ogc:PropertyIsEqualTo>
             <ogc:PropertyName>arrondissement</ogc:PropertyName>
@@ -128,7 +148,8 @@ describe('WFS 1.1.0 — Filter Encoding', () => {
             <ogc:Literal>Ville-Marie</ogc:Literal>
           </ogc:PropertyIsEqualTo>
         </ogc:Or>
-      `);
+      `,
+      );
       expect(body.features.length).toBeGreaterThan(0);
       for (const f of body.features) {
         expect(['Verdun', 'Ville-Marie']).toContain(f.properties.arrondissement);
@@ -136,14 +157,17 @@ describe('WFS 1.1.0 — Filter Encoding', () => {
     });
 
     it('Not negates a condition', async () => {
-      const { body } = await postWfsFilter('bornes-fontaines', `
+      const { body } = await postWfsFilter(
+        'bornes-fontaines',
+        `
         <ogc:Not>
           <ogc:PropertyIsEqualTo>
             <ogc:PropertyName>etat</ogc:PropertyName>
             <ogc:Literal>actif</ogc:Literal>
           </ogc:PropertyIsEqualTo>
         </ogc:Not>
-      `);
+      `,
+      );
       expect(body.features.length).toBeGreaterThan(0);
       for (const f of body.features) {
         expect(f.properties.etat).not.toBe('actif');
@@ -153,7 +177,9 @@ describe('WFS 1.1.0 — Filter Encoding', () => {
 
   describe('Spatial filters', () => {
     it('BBOX filters features within envelope', async () => {
-      const { body } = await postWfsFilter('bornes-fontaines', `
+      const { body } = await postWfsFilter(
+        'bornes-fontaines',
+        `
         <ogc:BBOX>
           <ogc:PropertyName>geometry</ogc:PropertyName>
           <gml:Envelope srsName="CRS:84">
@@ -161,7 +187,8 @@ describe('WFS 1.1.0 — Filter Encoding', () => {
             <gml:upperCorner>-73.55 45.52</gml:upperCorner>
           </gml:Envelope>
         </ogc:BBOX>
-      `);
+      `,
+      );
       expect(body.features.length).toBeGreaterThan(0);
       for (const f of body.features) {
         const [lon, lat] = f.geometry.coordinates;
@@ -173,7 +200,9 @@ describe('WFS 1.1.0 — Filter Encoding', () => {
     });
 
     it('Intersects filters with polygon', async () => {
-      const { body } = await postWfsFilter('bornes-fontaines', `
+      const { body } = await postWfsFilter(
+        'bornes-fontaines',
+        `
         <ogc:Intersects>
           <ogc:PropertyName>geometry</ogc:PropertyName>
           <gml:Polygon>
@@ -184,7 +213,8 @@ describe('WFS 1.1.0 — Filter Encoding', () => {
             </gml:exterior>
           </gml:Polygon>
         </ogc:Intersects>
-      `);
+      `,
+      );
       expect(body.features.length).toBeGreaterThan(0);
       for (const f of body.features) {
         const [lon, lat] = f.geometry.coordinates;
@@ -196,7 +226,9 @@ describe('WFS 1.1.0 — Filter Encoding', () => {
     });
 
     it('Within filters points within polygon', async () => {
-      const { body } = await postWfsFilter('bornes-fontaines', `
+      const { body } = await postWfsFilter(
+        'bornes-fontaines',
+        `
         <ogc:Within>
           <ogc:PropertyName>geometry</ogc:PropertyName>
           <gml:Polygon>
@@ -207,19 +239,23 @@ describe('WFS 1.1.0 — Filter Encoding', () => {
             </gml:exterior>
           </gml:Polygon>
         </ogc:Within>
-      `);
+      `,
+      );
       expect(body.features.length).toBeGreaterThan(0);
     });
 
     it('Contains filters polygons containing a point', async () => {
-      const { body } = await postWfsFilter('arrondissements', `
+      const { body } = await postWfsFilter(
+        'arrondissements',
+        `
         <ogc:Contains>
           <ogc:PropertyName>geometry</ogc:PropertyName>
           <gml:Point>
             <gml:pos>-73.5673 45.5017</gml:pos>
           </gml:Point>
         </ogc:Contains>
-      `);
+      `,
+      );
       expect(body.features.length).toBeGreaterThan(0);
       for (const f of body.features) {
         expect(f.properties.nom).toBe('Ville-Marie');

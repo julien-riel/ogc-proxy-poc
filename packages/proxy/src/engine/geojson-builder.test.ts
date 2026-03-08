@@ -4,7 +4,12 @@ import type { CollectionConfig } from './types.js';
 
 const pointConfig: CollectionConfig = {
   title: 'Test Points',
-  upstream: { baseUrl: '', method: 'GET', pagination: { type: 'offset-limit', offsetParam: 'offset', limitParam: 'limit' }, responseMapping: { items: '', total: '', item: '' } },
+  upstream: {
+    baseUrl: '',
+    method: 'GET',
+    pagination: { type: 'offset-limit', offsetParam: 'offset', limitParam: 'limit' },
+    responseMapping: { items: '', total: '', item: '' },
+  },
   geometry: { type: 'Point', xField: 'x', yField: 'y' },
   idField: 'id',
   properties: [{ name: 'etat', type: 'string' }],
@@ -12,7 +17,12 @@ const pointConfig: CollectionConfig = {
 
 const lineConfig: CollectionConfig = {
   title: 'Test Lines',
-  upstream: { baseUrl: '', method: 'GET', pagination: { type: 'offset-limit', offsetParam: 'offset', limitParam: 'limit' }, responseMapping: { items: '', total: '', item: '' } },
+  upstream: {
+    baseUrl: '',
+    method: 'GET',
+    pagination: { type: 'offset-limit', offsetParam: 'offset', limitParam: 'limit' },
+    responseMapping: { items: '', total: '', item: '' },
+  },
   geometry: { type: 'LineString', coordsField: 'geometry.coords' },
   idField: 'id',
   properties: [{ name: 'nom', type: 'string' }],
@@ -20,7 +30,12 @@ const lineConfig: CollectionConfig = {
 
 const polygonConfig: CollectionConfig = {
   title: 'Test Polygons',
-  upstream: { baseUrl: '', method: 'GET', pagination: { type: 'offset-limit', offsetParam: 'offset', limitParam: 'limit' }, responseMapping: { items: '', total: '', item: '' } },
+  upstream: {
+    baseUrl: '',
+    method: 'GET',
+    pagination: { type: 'offset-limit', offsetParam: 'offset', limitParam: 'limit' },
+    responseMapping: { items: '', total: '', item: '' },
+  },
   geometry: { type: 'Polygon', wktField: 'wkt' },
   idField: 'code',
   properties: [{ name: 'nom', type: 'string' }],
@@ -29,23 +44,42 @@ const polygonConfig: CollectionConfig = {
 describe('GeoJSON Builder', () => {
   describe('buildFeature', () => {
     it('builds a Point feature from x/y fields', () => {
-      const raw = { id: 1, x: -73.56, y: 45.50, etat: 'actif' };
+      const raw = { id: 1, x: -73.56, y: 45.5, etat: 'actif' };
       const feature = buildFeature(raw, pointConfig);
       expect(feature.type).toBe('Feature');
       expect(feature.id).toBe(1);
-      expect(feature.geometry).toEqual({ type: 'Point', coordinates: [-73.56, 45.50] });
+      expect(feature.geometry).toEqual({ type: 'Point', coordinates: [-73.56, 45.5] });
       expect(feature.properties).toEqual({ etat: 'actif' });
     });
 
     it('builds a LineString feature from coords field', () => {
-      const raw = { id: 2, geometry: { coords: [[-73.5, 45.5], [-73.6, 45.6]] }, nom: 'Test' };
+      const raw = {
+        id: 2,
+        geometry: {
+          coords: [
+            [-73.5, 45.5],
+            [-73.6, 45.6],
+          ],
+        },
+        nom: 'Test',
+      };
       const feature = buildFeature(raw, lineConfig);
-      expect(feature.geometry).toEqual({ type: 'LineString', coordinates: [[-73.5, 45.5], [-73.6, 45.6]] });
+      expect(feature.geometry).toEqual({
+        type: 'LineString',
+        coordinates: [
+          [-73.5, 45.5],
+          [-73.6, 45.6],
+        ],
+      });
       expect(feature.properties).toEqual({ nom: 'Test' });
     });
 
     it('builds a Polygon feature from WKT', () => {
-      const raw = { code: 'VM', nom: 'Ville-Marie', wkt: 'POLYGON((-73.59 45.49, -73.55 45.49, -73.55 45.52, -73.59 45.52, -73.59 45.49))' };
+      const raw = {
+        code: 'VM',
+        nom: 'Ville-Marie',
+        wkt: 'POLYGON((-73.59 45.49, -73.55 45.49, -73.55 45.52, -73.59 45.52, -73.59 45.49))',
+      };
       const feature = buildFeature(raw, polygonConfig);
       expect(feature.id).toBe('VM');
       expect(feature.geometry.type).toBe('Polygon');

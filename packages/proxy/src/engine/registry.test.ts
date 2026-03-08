@@ -81,7 +81,11 @@ describe('Registry Zod validation', () => {
 
   afterEach(() => {
     for (const f of tmpFiles) {
-      try { unlinkSync(f); } catch { /* ignore */ }
+      try {
+        unlinkSync(f);
+      } catch {
+        /* ignore */
+      }
     }
     tmpFiles.length = 0;
   });
@@ -125,9 +129,7 @@ describe('Registry Zod validation', () => {
           },
           geometry: { type: 'Point', xField: 'x', yField: 'y' },
           idField: 'id',
-          properties: [
-            { name: 'field1', type: 'string', filterable: true },
-          ],
+          properties: [{ name: 'field1', type: 'string', filterable: true }],
         },
       },
     });

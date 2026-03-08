@@ -15,9 +15,7 @@ export function extractBboxFromAst(node: CqlNode): [number, number, number, numb
       }
       if (node.operator === 'S_DWITHIN' && node.geometry.type === 'Point' && node.distance) {
         const [lon, lat] = node.geometry.coordinates;
-        const distKm = node.distanceUnits === 'meters'
-          ? node.distance / 1000
-          : node.distance;
+        const distKm = node.distanceUnits === 'meters' ? node.distance / 1000 : node.distance;
         const latDelta = distKm / 111.32;
         const lonDelta = distKm / (111.32 * Math.cos((lat * Math.PI) / 180));
         return [lon - lonDelta, lat - latDelta, lon + lonDelta, lat + latDelta];

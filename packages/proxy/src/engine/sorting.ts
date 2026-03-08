@@ -6,7 +6,7 @@ export interface SortField {
 }
 
 export function parseSortby(sortby: string): SortField[] {
-  return sortby.split(',').map(part => {
+  return sortby.split(',').map((part) => {
     const trimmed = part.trim();
     if (trimmed.startsWith('-')) {
       return { field: trimmed.slice(1), order: 'desc' };
@@ -21,7 +21,7 @@ export function parseSortby(sortby: string): SortField[] {
  */
 export function validateSortable(sortFields: SortField[], properties: PropertyConfig[]): string | null {
   for (const sf of sortFields) {
-    const prop = properties.find(p => p.name === sf.field);
+    const prop = properties.find((p) => p.name === sf.field);
     if (!prop || !prop.sortable) {
       return `Property '${sf.field}' is not sortable`;
     }
@@ -35,13 +35,10 @@ export function validateSortable(sortFields: SortField[], properties: PropertyCo
 /**
  * Build upstream query params for sorting.
  */
-export function buildUpstreamSort(
-  sortFields: SortField[],
-  properties: PropertyConfig[],
-): Record<string, string> {
+export function buildUpstreamSort(sortFields: SortField[], properties: PropertyConfig[]): Record<string, string> {
   const params: Record<string, string> = {};
   for (const sf of sortFields) {
-    const prop = properties.find(p => p.name === sf.field);
+    const prop = properties.find((p) => p.name === sf.field);
     if (!prop?.upstream?.sortParam) continue;
     const prefix = sf.order === 'desc' ? (prop.upstream.sortDesc ?? '-') : '';
     params[prop.upstream.sortParam] = `${prefix}${sf.field}`;

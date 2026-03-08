@@ -71,9 +71,7 @@ describe('CQL2 Parser', () => {
   });
 
   it('parses S_WITHIN with POLYGON', () => {
-    const ast = parseCql2(
-      'S_WITHIN(geometry,POLYGON((-73.6 45.4,-73.5 45.4,-73.5 45.5,-73.6 45.5,-73.6 45.4)))'
-    );
+    const ast = parseCql2('S_WITHIN(geometry,POLYGON((-73.6 45.4,-73.5 45.4,-73.5 45.5,-73.6 45.5,-73.6 45.4)))');
     expect(ast.type).toBe('spatial');
     if (ast.type === 'spatial') {
       expect(ast.operator).toBe('S_WITHIN');

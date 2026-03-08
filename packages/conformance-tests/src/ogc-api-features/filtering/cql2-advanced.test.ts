@@ -10,9 +10,7 @@ function cql2Url(collection: string, expr: string): string {
 
 describe('CQL2 Advanced Comparison', () => {
   it('filters with LIKE operator', async () => {
-    const { body } = await fetchGeoJson(
-      cql2Url('bornes-fontaines', "arrondissement LIKE 'V%'")
-    );
+    const { body } = await fetchGeoJson(cql2Url('bornes-fontaines', "arrondissement LIKE 'V%'"));
     expect(body.features.length).toBeGreaterThan(0);
     for (const f of body.features) {
       expect(f.properties.arrondissement).toMatch(/^V/);
@@ -20,9 +18,7 @@ describe('CQL2 Advanced Comparison', () => {
   });
 
   it('filters with IN operator', async () => {
-    const { body } = await fetchGeoJson(
-      cql2Url('bornes-fontaines', "arrondissement IN ('Verdun','Ville-Marie')")
-    );
+    const { body } = await fetchGeoJson(cql2Url('bornes-fontaines', "arrondissement IN ('Verdun','Ville-Marie')"));
     expect(body.features.length).toBeGreaterThan(0);
     for (const f of body.features) {
       expect(['Verdun', 'Ville-Marie']).toContain(f.properties.arrondissement);
@@ -30,9 +26,7 @@ describe('CQL2 Advanced Comparison', () => {
   });
 
   it('filters with IN operator using numeric values', async () => {
-    const { body } = await fetchGeoJson(
-      cql2Url('arrondissements', "population IN (89170,69229)")
-    );
+    const { body } = await fetchGeoJson(cql2Url('arrondissements', 'population IN (89170,69229)'));
     expect(body.features.length).toBeGreaterThan(0);
     for (const f of body.features) {
       expect([89170, 69229]).toContain(f.properties.population);
@@ -40,9 +34,7 @@ describe('CQL2 Advanced Comparison', () => {
   });
 
   it('filters with BETWEEN operator', async () => {
-    const { body } = await fetchGeoJson(
-      cql2Url('arrondissements', 'population BETWEEN 70000 AND 100000')
-    );
+    const { body } = await fetchGeoJson(cql2Url('arrondissements', 'population BETWEEN 70000 AND 100000'));
     expect(body.features.length).toBeGreaterThan(0);
     for (const f of body.features) {
       expect(f.properties.population).toBeGreaterThanOrEqual(70000);

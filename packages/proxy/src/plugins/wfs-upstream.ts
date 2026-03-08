@@ -9,11 +9,7 @@ interface WfsGetFeatureOptions {
   bbox?: [number, number, number, number];
 }
 
-export function buildWfsGetFeatureUrl(
-  baseUrl: string,
-  typeName: string,
-  options: WfsGetFeatureOptions,
-): string {
+export function buildWfsGetFeatureUrl(baseUrl: string, typeName: string, options: WfsGetFeatureOptions): string {
   const url = new URL(baseUrl);
   url.searchParams.set('service', 'WFS');
   url.searchParams.set('version', options.version);

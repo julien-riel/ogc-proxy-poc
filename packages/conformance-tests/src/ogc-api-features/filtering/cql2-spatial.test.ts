@@ -13,8 +13,8 @@ describe('CQL2 Spatial filters', () => {
     const { body } = await fetchGeoJson(
       cql2Url(
         'bornes-fontaines',
-        'S_INTERSECTS(geometry,POLYGON((-73.59 45.49,-73.55 45.49,-73.55 45.52,-73.59 45.52,-73.59 45.49)))'
-      )
+        'S_INTERSECTS(geometry,POLYGON((-73.59 45.49,-73.55 45.49,-73.55 45.52,-73.59 45.52,-73.59 45.49)))',
+      ),
     );
     expect(body.features.length).toBeGreaterThan(0);
     for (const f of body.features) {
@@ -30,13 +30,13 @@ describe('CQL2 Spatial filters', () => {
     const { body } = await fetchGeoJson(
       cql2Url(
         'bornes-fontaines',
-        'S_INTERSECTS(geometry,POLYGON((-73.60 45.45,-73.55 45.45,-73.55 45.48,-73.60 45.48,-73.60 45.45)))'
-      )
+        'S_INTERSECTS(geometry,POLYGON((-73.60 45.45,-73.55 45.45,-73.55 45.48,-73.60 45.48,-73.60 45.45)))',
+      ),
     );
     expect(body.features.length).toBeGreaterThan(0);
     for (const f of body.features) {
       const [lon, lat] = f.geometry.coordinates;
-      expect(lon).toBeGreaterThanOrEqual(-73.60);
+      expect(lon).toBeGreaterThanOrEqual(-73.6);
       expect(lon).toBeLessThanOrEqual(-73.55);
       expect(lat).toBeGreaterThanOrEqual(45.45);
       expect(lat).toBeLessThanOrEqual(45.48);
@@ -45,10 +45,7 @@ describe('CQL2 Spatial filters', () => {
 
   it('S_DWITHIN filters points within distance', async () => {
     const { body } = await fetchGeoJson(
-      cql2Url(
-        'bornes-fontaines',
-        'S_DWITHIN(geometry,POINT(-73.5673 45.5017),500,meters)'
-      )
+      cql2Url('bornes-fontaines', 'S_DWITHIN(geometry,POINT(-73.5673 45.5017),500,meters)'),
     );
     expect(body.features.length).toBeGreaterThan(0);
   });
@@ -57,8 +54,8 @@ describe('CQL2 Spatial filters', () => {
     const { body } = await fetchGeoJson(
       cql2Url(
         'bornes-fontaines',
-        'S_WITHIN(geometry,POLYGON((-73.59 45.49,-73.55 45.49,-73.55 45.52,-73.59 45.52,-73.59 45.49)))'
-      )
+        'S_WITHIN(geometry,POLYGON((-73.59 45.49,-73.55 45.49,-73.55 45.52,-73.59 45.52,-73.59 45.49)))',
+      ),
     );
     expect(body.features.length).toBeGreaterThan(0);
     for (const f of body.features) {
@@ -73,12 +70,7 @@ describe('CQL2 Spatial filters', () => {
   it('S_CONTAINS filters polygons containing a point', async () => {
     // Ville-Marie polygon is POLYGON((-73.59 45.49,-73.55 45.49,-73.55 45.52,-73.59 45.52,-73.59 45.49))
     // Point (-73.5673, 45.5017) is borne #1 which is inside Ville-Marie
-    const { body } = await fetchGeoJson(
-      cql2Url(
-        'arrondissements',
-        'S_CONTAINS(geometry,POINT(-73.5673 45.5017))'
-      )
-    );
+    const { body } = await fetchGeoJson(cql2Url('arrondissements', 'S_CONTAINS(geometry,POINT(-73.5673 45.5017))'));
     expect(body.features.length).toBeGreaterThan(0);
     for (const f of body.features) {
       expect(f.properties.nom).toBe('Ville-Marie');
@@ -91,8 +83,8 @@ describe('CQL2 Spatial filters', () => {
     const { body } = await fetchGeoJson(
       cql2Url(
         'arrondissements',
-        'S_DISJOINT(geometry,POLYGON((-73.58 45.45,-73.55 45.45,-73.55 45.47,-73.58 45.47,-73.58 45.45)))'
-      )
+        'S_DISJOINT(geometry,POLYGON((-73.58 45.45,-73.55 45.45,-73.55 45.47,-73.58 45.47,-73.58 45.45)))',
+      ),
     );
     expect(body.features.length).toBeGreaterThan(0);
     for (const f of body.features) {
@@ -105,8 +97,8 @@ describe('CQL2 Spatial filters', () => {
     const { body } = await fetchGeoJson(
       cql2Url(
         'arrondissements',
-        'S_EQUALS(geometry,POLYGON((-73.58 45.45,-73.55 45.45,-73.55 45.47,-73.58 45.47,-73.58 45.45)))'
-      )
+        'S_EQUALS(geometry,POLYGON((-73.58 45.45,-73.55 45.45,-73.55 45.47,-73.58 45.47,-73.58 45.45)))',
+      ),
     );
     expect(body.features.length).toBe(1);
     expect(body.features[0].properties.nom).toBe('Verdun');
@@ -116,8 +108,8 @@ describe('CQL2 Spatial filters', () => {
     const { body } = await fetchGeoJson(
       cql2Url(
         'bornes-fontaines',
-        "S_INTERSECTS(geometry,POLYGON((-73.59 45.49,-73.55 45.49,-73.55 45.52,-73.59 45.52,-73.59 45.49))) AND etat='actif'"
-      )
+        "S_INTERSECTS(geometry,POLYGON((-73.59 45.49,-73.55 45.49,-73.55 45.52,-73.59 45.52,-73.59 45.49))) AND etat='actif'",
+      ),
     );
     for (const f of body.features) {
       expect(f.properties.etat).toBe('actif');

@@ -25,7 +25,7 @@ describe('WFS — Version Negotiation', () => {
   it('GetFeature works regardless of version parameter', async () => {
     for (const version of ['1.1.0', '2.0.0']) {
       const res = await fetch(
-        `${BASE_URL}/wfs?service=WFS&version=${version}&request=GetFeature&outputFormat=application/json&typeName=bornes-fontaines&maxFeatures=1`
+        `${BASE_URL}/wfs?service=WFS&version=${version}&request=GetFeature&outputFormat=application/json&typeName=bornes-fontaines&maxFeatures=1`,
       );
       expect(res.status).toBe(200);
       const body = await res.json();

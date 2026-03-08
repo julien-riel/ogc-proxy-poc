@@ -15,7 +15,7 @@ async function waitForServer(url: string, maxWait = 15000): Promise<void> {
     } catch {
       // Server not ready yet
     }
-    await new Promise(r => setTimeout(r, 300));
+    await new Promise((r) => setTimeout(r, 300));
   }
   throw new Error(`Server at ${url} did not start within ${maxWait}ms`);
 }

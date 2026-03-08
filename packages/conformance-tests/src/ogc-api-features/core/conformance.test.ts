@@ -15,30 +15,24 @@ describe('OGC API — Conformance (/ogc/conformance)', () => {
 
   it('declares Core conformance class URI', async () => {
     const { body } = await fetchJson('/ogc/conformance');
-    expect(body.conformsTo).toContain(
-      'http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/core'
-    );
+    expect(body.conformsTo).toContain('http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/core');
   });
 
   it('declares GeoJSON conformance class URI', async () => {
     const { body } = await fetchJson('/ogc/conformance');
-    expect(body.conformsTo).toContain(
-      'http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/geojson'
-    );
+    expect(body.conformsTo).toContain('http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/geojson');
   });
 
   it('declares Filter conformance class URI', async () => {
     const { body } = await fetchJson('/ogc/conformance');
-    const hasFilter = body.conformsTo.some(
-      (uri: string) => uri.includes('filter') || uri.includes('Filter')
-    );
+    const hasFilter = body.conformsTo.some((uri: string) => uri.includes('filter') || uri.includes('Filter'));
     expect(hasFilter).toBe(true);
   });
 
   it('declares Features Filter conformance class URI', async () => {
     const { body } = await fetchJson('/ogc/conformance');
     const hasFeaturesFilter = body.conformsTo.some(
-      (uri: string) => uri.includes('features-filter') || uri.includes('features_filter')
+      (uri: string) => uri.includes('features-filter') || uri.includes('features_filter'),
     );
     expect(hasFeaturesFilter).toBe(true);
   });

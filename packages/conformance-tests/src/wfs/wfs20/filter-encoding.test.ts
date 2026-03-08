@@ -27,12 +27,15 @@ async function postWfs20Filter(typeName: string, filterXml: string, count = 100)
 
 describe('WFS 2.0.0 — Filter Encoding (FES 2.0)', () => {
   it('PropertyIsEqualTo with ValueReference', async () => {
-    const { body } = await postWfs20Filter('bornes-fontaines', `
+    const { body } = await postWfs20Filter(
+      'bornes-fontaines',
+      `
       <fes:PropertyIsEqualTo>
         <fes:ValueReference>etat</fes:ValueReference>
         <fes:Literal>actif</fes:Literal>
       </fes:PropertyIsEqualTo>
-    `);
+    `,
+    );
     expect(body.features.length).toBeGreaterThan(0);
     for (const f of body.features) {
       expect(f.properties.etat).toBe('actif');
@@ -40,7 +43,9 @@ describe('WFS 2.0.0 — Filter Encoding (FES 2.0)', () => {
   });
 
   it('And combines two FES conditions', async () => {
-    const { body } = await postWfs20Filter('bornes-fontaines', `
+    const { body } = await postWfs20Filter(
+      'bornes-fontaines',
+      `
       <fes:And>
         <fes:PropertyIsEqualTo>
           <fes:ValueReference>etat</fes:ValueReference>
@@ -51,7 +56,8 @@ describe('WFS 2.0.0 — Filter Encoding (FES 2.0)', () => {
           <fes:Literal>Verdun</fes:Literal>
         </fes:PropertyIsEqualTo>
       </fes:And>
-    `);
+    `,
+    );
     expect(body.features.length).toBeGreaterThan(0);
     for (const f of body.features) {
       expect(f.properties.etat).toBe('actif');
@@ -60,7 +66,9 @@ describe('WFS 2.0.0 — Filter Encoding (FES 2.0)', () => {
   });
 
   it('BBOX filter with GML 3.2 Envelope', async () => {
-    const { body } = await postWfs20Filter('bornes-fontaines', `
+    const { body } = await postWfs20Filter(
+      'bornes-fontaines',
+      `
       <fes:BBOX>
         <fes:ValueReference>geometry</fes:ValueReference>
         <gml:Envelope srsName="urn:ogc:def:crs:OGC:1.3:CRS84">
@@ -68,7 +76,8 @@ describe('WFS 2.0.0 — Filter Encoding (FES 2.0)', () => {
           <gml:upperCorner>-73.55 45.52</gml:upperCorner>
         </gml:Envelope>
       </fes:BBOX>
-    `);
+    `,
+    );
     expect(body.features.length).toBeGreaterThan(0);
     for (const f of body.features) {
       const [lon, lat] = f.geometry.coordinates;
@@ -80,12 +89,15 @@ describe('WFS 2.0.0 — Filter Encoding (FES 2.0)', () => {
   });
 
   it('PropertyIsGreaterThan with numeric literal', async () => {
-    const { body } = await postWfs20Filter('arrondissements', `
+    const { body } = await postWfs20Filter(
+      'arrondissements',
+      `
       <fes:PropertyIsGreaterThan>
         <fes:ValueReference>population</fes:ValueReference>
         <fes:Literal>100000</fes:Literal>
       </fes:PropertyIsGreaterThan>
-    `);
+    `,
+    );
     expect(body.features.length).toBeGreaterThan(0);
     for (const f of body.features) {
       expect(f.properties.population).toBeGreaterThan(100000);
@@ -93,7 +105,9 @@ describe('WFS 2.0.0 — Filter Encoding (FES 2.0)', () => {
   });
 
   it('Intersects with GML Polygon', async () => {
-    const { body } = await postWfs20Filter('bornes-fontaines', `
+    const { body } = await postWfs20Filter(
+      'bornes-fontaines',
+      `
       <fes:Intersects>
         <fes:ValueReference>geometry</fes:ValueReference>
         <gml:Polygon>
@@ -104,7 +118,8 @@ describe('WFS 2.0.0 — Filter Encoding (FES 2.0)', () => {
           </gml:exterior>
         </gml:Polygon>
       </fes:Intersects>
-    `);
+    `,
+    );
     expect(body.features.length).toBeGreaterThan(0);
   });
 });

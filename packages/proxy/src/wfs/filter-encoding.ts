@@ -14,11 +14,16 @@ export function parseFilterXml(filter: Record<string, unknown>): CqlNode | null 
 
   // Comparison operators
   if (filter['PropertyIsEqualTo']) return parseComparison('=', filter['PropertyIsEqualTo'] as Record<string, unknown>);
-  if (filter['PropertyIsNotEqualTo']) return parseComparison('<>', filter['PropertyIsNotEqualTo'] as Record<string, unknown>);
-  if (filter['PropertyIsLessThan']) return parseComparison('<', filter['PropertyIsLessThan'] as Record<string, unknown>);
-  if (filter['PropertyIsGreaterThan']) return parseComparison('>', filter['PropertyIsGreaterThan'] as Record<string, unknown>);
-  if (filter['PropertyIsLessThanOrEqualTo']) return parseComparison('<=', filter['PropertyIsLessThanOrEqualTo'] as Record<string, unknown>);
-  if (filter['PropertyIsGreaterThanOrEqualTo']) return parseComparison('>=', filter['PropertyIsGreaterThanOrEqualTo'] as Record<string, unknown>);
+  if (filter['PropertyIsNotEqualTo'])
+    return parseComparison('<>', filter['PropertyIsNotEqualTo'] as Record<string, unknown>);
+  if (filter['PropertyIsLessThan'])
+    return parseComparison('<', filter['PropertyIsLessThan'] as Record<string, unknown>);
+  if (filter['PropertyIsGreaterThan'])
+    return parseComparison('>', filter['PropertyIsGreaterThan'] as Record<string, unknown>);
+  if (filter['PropertyIsLessThanOrEqualTo'])
+    return parseComparison('<=', filter['PropertyIsLessThanOrEqualTo'] as Record<string, unknown>);
+  if (filter['PropertyIsGreaterThanOrEqualTo'])
+    return parseComparison('>=', filter['PropertyIsGreaterThanOrEqualTo'] as Record<string, unknown>);
   if (filter['PropertyIsLike']) return parseLike(filter['PropertyIsLike'] as Record<string, unknown>);
   if (filter['PropertyIsBetween']) return parseBetween(filter['PropertyIsBetween'] as Record<string, unknown>);
   if (filter['PropertyIsNull']) return parseIsNull(filter['PropertyIsNull'] as Record<string, unknown>);
@@ -161,20 +166,24 @@ function parseGmlGeometry(node: Record<string, unknown>): GeoJSON.Geometry | nul
     const upper = String(env['upperCorner']).split(' ').map(Number);
     return {
       type: 'Polygon',
-      coordinates: [[
-        [lower[0], lower[1]],
-        [upper[0], lower[1]],
-        [upper[0], upper[1]],
-        [lower[0], upper[1]],
-        [lower[0], lower[1]],
-      ]],
+      coordinates: [
+        [
+          [lower[0], lower[1]],
+          [upper[0], lower[1]],
+          [upper[0], upper[1]],
+          [lower[0], upper[1]],
+          [lower[0], lower[1]],
+        ],
+      ],
     };
   }
 
   // Point
   if (node['Point']) {
     const pt = node['Point'] as Record<string, unknown>;
-    const coords = String(pt['pos'] || pt['coordinates']).split(/[\s,]+/).map(Number);
+    const coords = String(pt['pos'] || pt['coordinates'])
+      .split(/[\s,]+/)
+      .map(Number);
     return { type: 'Point', coordinates: [coords[0], coords[1]] };
   }
 
