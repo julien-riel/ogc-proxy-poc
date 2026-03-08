@@ -1,5 +1,5 @@
 import { tokenize } from './lexer.js';
-import type { Token, CqlNode, CqlSpatial } from './types.js';
+import type { Token, CqlNode, CqlSpatial, CqlTemporal } from './types.js';
 
 class Parser {
   private tokens: Token[];
@@ -64,7 +64,19 @@ class Parser {
     const token = this.peek();
 
     // Spatial function
-    if (token.type === 'KEYWORD' && ['S_INTERSECTS', 'S_WITHIN', 'S_DWITHIN', 'S_CONTAINS', 'S_CROSSES', 'S_TOUCHES', 'S_DISJOINT', 'S_EQUALS'].includes((token as { value: string }).value)) {
+    if (
+      token.type === 'KEYWORD' &&
+      [
+        'S_INTERSECTS',
+        'S_WITHIN',
+        'S_DWITHIN',
+        'S_CONTAINS',
+        'S_CROSSES',
+        'S_TOUCHES',
+        'S_DISJOINT',
+        'S_EQUALS',
+      ].includes((token as { value: string }).value)
+    ) {
       return this.parseSpatial();
     }
 
@@ -120,18 +132,20 @@ class Parser {
       if (this.peek().type === 'KEYWORD' && (this.peek() as { value: string }).value === 'BETWEEN') {
         this.advance();
         const lowToken = this.advance();
-        const low = lowToken.type === 'STRING'
-          ? (lowToken as { type: 'STRING'; value: string }).value
-          : (lowToken as { type: 'NUMBER'; value: number }).value;
+        const low =
+          lowToken.type === 'STRING'
+            ? (lowToken as { type: 'STRING'; value: string }).value
+            : (lowToken as { type: 'NUMBER'; value: number }).value;
         // Expect AND keyword
         const andToken = this.advance();
         if (andToken.type !== 'KEYWORD' || (andToken as { value: string }).value !== 'AND') {
           throw new Error(`Expected AND in BETWEEN, got ${JSON.stringify(andToken)}`);
         }
         const highToken = this.advance();
-        const high = highToken.type === 'STRING'
-          ? (highToken as { type: 'STRING'; value: string }).value
-          : (highToken as { type: 'NUMBER'; value: number }).value;
+        const high =
+          highToken.type === 'STRING'
+            ? (highToken as { type: 'STRING'; value: string }).value
+            : (highToken as { type: 'NUMBER'; value: number }).value;
         return { type: 'between', property, low, high };
       }
 
@@ -150,12 +164,27 @@ class Parser {
         return { type: 'isNull', property, negated };
       }
 
+      // Temporal predicates
+      if (
+        this.peek().type === 'KEYWORD' &&
+        ['T_BEFORE', 'T_AFTER', 'T_DURING'].includes((this.peek() as { value: string }).value)
+      ) {
+        const op = (this.advance() as { value: string }).value as CqlTemporal['operator'];
+        const value = (this.expect('STRING') as { type: 'STRING'; value: string }).value;
+        if (op === 'T_DURING') {
+          const value2 = (this.expect('STRING') as { type: 'STRING'; value: string }).value;
+          return { type: 'temporal', operator: op, property, value, value2 };
+        }
+        return { type: 'temporal', operator: op, property, value };
+      }
+
       // Comparison
       const op = (this.expect('OPERATOR') as { type: 'OPERATOR'; value: string }).value;
       const valToken = this.advance();
-      const value = valToken.type === 'STRING'
-        ? (valToken as { type: 'STRING'; value: string }).value
-        : (valToken as { type: 'NUMBER'; value: number }).value;
+      const value =
+        valToken.type === 'STRING'
+          ? (valToken as { type: 'STRING'; value: string }).value
+          : (valToken as { type: 'NUMBER'; value: number }).value;
       return {
         type: 'comparison',
         property,
@@ -197,10 +226,14 @@ class Parser {
     const geomType = (this.advance() as { type: 'KEYWORD'; value: string }).value;
 
     switch (geomType) {
-      case 'POINT': return this.parsePoint();
-      case 'POLYGON': return this.parsePolygon();
-      case 'LINESTRING': return this.parseLineString();
-      default: throw new Error(`Unsupported geometry type: ${geomType}`);
+      case 'POINT':
+        return this.parsePoint();
+      case 'POLYGON':
+        return this.parsePolygon();
+      case 'LINESTRING':
+        return this.parseLineString();
+      default:
+        throw new Error(`Unsupported geometry type: ${geomType}`);
     }
   }
 

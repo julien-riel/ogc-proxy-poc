@@ -1,10 +1,28 @@
 import type { Token } from './types.js';
 
 const KEYWORDS = new Set([
-  'AND', 'OR', 'NOT', 'LIKE', 'IN', 'BETWEEN', 'IS', 'NULL',
-  'S_INTERSECTS', 'S_WITHIN', 'S_DWITHIN',
-  'S_CONTAINS', 'S_CROSSES', 'S_TOUCHES', 'S_DISJOINT', 'S_EQUALS',
-  'POINT', 'LINESTRING', 'POLYGON',
+  'AND',
+  'OR',
+  'NOT',
+  'LIKE',
+  'IN',
+  'BETWEEN',
+  'IS',
+  'NULL',
+  'S_INTERSECTS',
+  'S_WITHIN',
+  'S_DWITHIN',
+  'S_CONTAINS',
+  'S_CROSSES',
+  'S_TOUCHES',
+  'S_DISJOINT',
+  'S_EQUALS',
+  'T_BEFORE',
+  'T_AFTER',
+  'T_DURING',
+  'POINT',
+  'LINESTRING',
+  'POLYGON',
 ]);
 
 const OPERATORS = ['<>', '<=', '>=', '=', '<', '>'];
@@ -39,12 +57,24 @@ export function tokenize(input: string): Token[] {
     }
 
     // Parentheses and comma
-    if (input[i] === '(') { tokens.push({ type: 'LPAREN' }); i++; continue; }
-    if (input[i] === ')') { tokens.push({ type: 'RPAREN' }); i++; continue; }
-    if (input[i] === ',') { tokens.push({ type: 'COMMA' }); i++; continue; }
+    if (input[i] === '(') {
+      tokens.push({ type: 'LPAREN' });
+      i++;
+      continue;
+    }
+    if (input[i] === ')') {
+      tokens.push({ type: 'RPAREN' });
+      i++;
+      continue;
+    }
+    if (input[i] === ',') {
+      tokens.push({ type: 'COMMA' });
+      i++;
+      continue;
+    }
 
     // Operators (check multi-char first)
-    const opMatch = OPERATORS.find(op => input.slice(i, i + op.length) === op);
+    const opMatch = OPERATORS.find((op) => input.slice(i, i + op.length) === op);
     if (opMatch) {
       tokens.push({ type: 'OPERATOR', value: opMatch });
       i += opMatch.length;
@@ -63,9 +93,13 @@ export function tokenize(input: string): Token[] {
         }
       }
       let num = '';
-      if (input[i] === '-') { num += '-'; i++; }
+      if (input[i] === '-') {
+        num += '-';
+        i++;
+      }
       while (i < input.length && /[\d.]/.test(input[i])) {
-        num += input[i]; i++;
+        num += input[i];
+        i++;
       }
       tokens.push({ type: 'NUMBER', value: parseFloat(num) });
       continue;
@@ -75,7 +109,8 @@ export function tokenize(input: string): Token[] {
     if (/[a-zA-Z_]/.test(input[i])) {
       let word = '';
       while (i < input.length && /[a-zA-Z0-9_]/.test(input[i])) {
-        word += input[i]; i++;
+        word += input[i];
+        i++;
       }
       if (KEYWORDS.has(word.toUpperCase())) {
         tokens.push({ type: 'KEYWORD', value: word.toUpperCase() });
