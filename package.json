@@ -13,7 +13,7 @@
     "test:conformance": "npm test -w packages/conformance-tests",
     "test:coverage": "npm run test:coverage -w packages/proxy",
     "bench": "npm run bench -w packages/proxy",
-    "build": "npm run build --workspaces",
+    "build": "npm run build --workspaces --if-present",
     "lint": "eslint packages/*/src/",
     "lint:fix": "eslint packages/*/src/ --fix",
     "format": "prettier --write 'packages/*/src/**/*.ts'",
