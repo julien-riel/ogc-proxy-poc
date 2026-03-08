@@ -1,7 +1,7 @@
 import { XMLParser } from 'fast-xml-parser';
 import { getCollection } from '../engine/registry.js';
 import { fetchUpstreamItems } from '../engine/adapter.js';
-import { buildFeature, buildFeatureSafe } from '../engine/geojson-builder.js';
+import { buildFeatureSafe } from '../engine/geojson-builder.js';
 import { parseFilterXml } from './filter-encoding.js';
 import { evaluateFilter } from '../engine/cql2/evaluator.js';
 import { parseCql2 } from '../engine/cql2/parser.js';
@@ -140,7 +140,7 @@ export async function executeGetFeature(params: WfsGetFeatureParams) {
   const srs = normalizeSrs(params.srsName);
 
   if (params.resultType === 'hits') {
-    const upstream = await fetchUpstreamItems(config, { offset: 0, limit: 1 });
+    const upstream = await fetchUpstreamItems(params.typeName, config, { offset: 0, limit: 1 });
     return {
       type: 'FeatureCollection',
       totalFeatures: upstream.total ?? 0,
@@ -162,7 +162,7 @@ export async function executeGetFeature(params: WfsGetFeatureParams) {
     ? Math.min(params.maxFeatures * 10, maxPostFetch)
     : params.maxFeatures;
 
-  const upstream = await fetchUpstreamItems(config, {
+  const upstream = await fetchUpstreamItems(params.typeName, config, {
     offset: params.startIndex,
     limit: fetchLimit,
   });

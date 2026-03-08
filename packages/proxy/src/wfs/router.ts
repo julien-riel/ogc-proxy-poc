@@ -4,7 +4,7 @@ import { buildCapabilitiesXml, buildCapabilities20Xml } from './capabilities.js'
 import { buildDescribeFeatureType } from './describe.js';
 import { parseGetFeatureGet, parseGetFeaturePost, executeGetFeature } from './get-feature.js';
 import { logger } from '../logger.js';
-import { UpstreamTimeoutError } from '../engine/adapter.js';
+import { UpstreamError, UpstreamTimeoutError } from '../engine/adapter.js';
 
 function normalizeQuery(query: Record<string, unknown>): Record<string, string> {
   const normalized: Record<string, string> = {};
@@ -19,7 +19,7 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
 
   router.use(express.text({ type: ['application/xml', 'text/xml'], limit: '100kb' }));
 
-  router.get('/', (req, res, next) => {
+  router.get('/', (req, res, _next) => {
     const query = normalizeQuery(req.query as Record<string, unknown>);
     const request = (query.request || '').toLowerCase();
 
@@ -50,6 +50,11 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
             if (!result) return res.status(404).json({ code: 'NotFound', description: 'Requested type not found' });
             return res.json(result);
           } catch (err) {
+            if (err instanceof UpstreamError && err.statusCode === 429) {
+              const log = logger.wfs();
+              log.warning({ }, 'WFS rate limited');
+              return res.status(429).json({ code: 'TooManyRequests', description: 'Upstream rate limit exceeded' });
+            }
             if (err instanceof UpstreamTimeoutError) {
               const log = logger.wfs();
               log.error({ err }, 'WFS upstream timeout');
@@ -77,6 +82,11 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
       if (!result) return res.status(404).json({ code: 'NotFound', description: 'Requested type not found' });
       return res.json(result);
     } catch (err) {
+      if (err instanceof UpstreamError && err.statusCode === 429) {
+        const log = logger.wfs();
+        log.warning({ }, 'WFS rate limited');
+        return res.status(429).json({ code: 'TooManyRequests', description: 'Upstream rate limit exceeded' });
+      }
       if (err instanceof UpstreamTimeoutError) {
         const log = logger.wfs();
         log.error({ err }, 'WFS upstream timeout');

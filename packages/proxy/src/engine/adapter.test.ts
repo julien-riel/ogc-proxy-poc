@@ -56,7 +56,7 @@ describe('Adapter', () => {
         json: () => Promise.resolve({ data: [{ id: 1 }], total: 10 }),
       }));
 
-      const result = await fetchUpstreamItems(offsetLimitConfig, { offset: 5, limit: 3 });
+      const result = await fetchUpstreamItems('test-offset', offsetLimitConfig, { offset: 5, limit: 3 });
 
       expect(fetch).toHaveBeenCalledWith(expect.stringContaining('offset=5'), expect.any(Object));
       expect(fetch).toHaveBeenCalledWith(expect.stringContaining('limit=3'), expect.any(Object));
@@ -73,7 +73,7 @@ describe('Adapter', () => {
       }));
 
       // offset=6, limit=3 → page=3, pageSize=3
-      const result = await fetchUpstreamItems(pageConfig, { offset: 6, limit: 3 });
+      const result = await fetchUpstreamItems('test-page', pageConfig, { offset: 6, limit: 3 });
 
       expect(fetch).toHaveBeenCalledWith(expect.stringContaining('page=3'), expect.any(Object));
       expect(fetch).toHaveBeenCalledWith(expect.stringContaining('pageSize=3'), expect.any(Object));
@@ -87,7 +87,7 @@ describe('Adapter', () => {
         json: () => Promise.resolve({ results: [{ id: 1 }], count: 8 }),
       }));
 
-      await fetchUpstreamItems(pageConfig, { offset: 0, limit: 5 });
+      await fetchUpstreamItems('test-page', pageConfig, { offset: 0, limit: 5 });
       expect(fetch).toHaveBeenCalledWith(expect.stringContaining('page=1'), expect.any(Object));
     });
   });
@@ -99,7 +99,7 @@ describe('Adapter', () => {
         json: () => Promise.resolve({ items: [{ code: 'A' }, { code: 'B' }], nextCursor: 'B' }),
       }));
 
-      const result = await fetchUpstreamItems(cursorConfig, { offset: 0, limit: 2 });
+      const result = await fetchUpstreamItems('test-cursor', cursorConfig, { offset: 0, limit: 2 });
 
       // No cursor param on first request
       const calledUrl = (fetch as any).mock.calls[0][0] as string;
@@ -121,7 +121,7 @@ describe('Adapter', () => {
       vi.stubGlobal('fetch', fetchMock);
 
       // offset=2, limit=2 → skip first 2 items, return next 2
-      const result = await fetchUpstreamItems(cursorConfig, { offset: 2, limit: 2 });
+      const result = await fetchUpstreamItems('test-cursor', cursorConfig, { offset: 2, limit: 2 });
 
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(result.items).toEqual([{ code: 'C' }, { code: 'D' }]);
@@ -135,7 +135,7 @@ describe('Adapter', () => {
         json: () => Promise.resolve({ data: { id: 1, name: 'A' } }),
       }));
 
-      const result = await fetchUpstreamItem(offsetLimitConfig, '1');
+      const result = await fetchUpstreamItem('test-offset', offsetLimitConfig, '1');
       expect(fetch).toHaveBeenCalledWith('http://mock:3001/api/test/1', expect.any(Object));
       expect(result).toEqual({ id: 1, name: 'A' });
     });
@@ -147,7 +147,7 @@ describe('Adapter', () => {
         ok: false, status: 500, statusText: 'Internal Server Error',
       }));
 
-      await expect(fetchUpstreamItems(offsetLimitConfig, { offset: 0, limit: 10 }))
+      await expect(fetchUpstreamItems('test-offset', offsetLimitConfig, { offset: 0, limit: 10 }))
         .rejects.toThrow('Upstream error: 500');
     });
   });
@@ -157,7 +157,7 @@ describe('Adapter', () => {
       vi.stubGlobal('fetch', vi.fn(() =>
         Promise.resolve({ ok: true, json: () => Promise.resolve({ data: 'not-an-array', total: 5 }) })
       ));
-      const result = await fetchUpstreamItems(offsetLimitConfig, { offset: 0, limit: 10 });
+      const result = await fetchUpstreamItems('test-offset', offsetLimitConfig, { offset: 0, limit: 10 });
       expect(result.items).toEqual([]);
     });
 
@@ -165,7 +165,7 @@ describe('Adapter', () => {
       vi.stubGlobal('fetch', vi.fn(() =>
         Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [], total: 'bad' }) })
       ));
-      const result = await fetchUpstreamItems(offsetLimitConfig, { offset: 0, limit: 10 });
+      const result = await fetchUpstreamItems('test-offset', offsetLimitConfig, { offset: 0, limit: 10 });
       expect(result.total).toBeUndefined();
     });
   });
@@ -183,7 +183,7 @@ describe('Adapter', () => {
         });
       }));
       const configWithTimeout = { ...offsetLimitConfig, timeout: 50 };
-      await expect(fetchUpstreamItems(configWithTimeout, { offset: 0, limit: 10 }))
+      await expect(fetchUpstreamItems('test-offset', configWithTimeout, { offset: 0, limit: 10 }))
         .rejects.toThrow('Upstream timeout');
     });
   });

@@ -26,7 +26,10 @@ describe('createJwtMiddleware', () => {
     expect(nextCalled).toBe(true);
   });
 
-  it('should throw when enabled but host is missing', async () => {
+});
+
+describe('createJwtMiddleware — enabled', () => {
+  it('throws if host is missing', async () => {
     await expect(createJwtMiddleware({ enabled: true, host: '' }))
       .rejects.toThrow('JWT is enabled but jwt.host is not configured');
   });

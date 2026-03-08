@@ -1,6 +1,7 @@
 import type { CollectionConfig } from './types.js';
 import { getByPath } from './geojson-builder.js';
 import { buildWfsGetFeatureUrl } from '../plugins/wfs-upstream.js';
+import { getUpstreamBucket } from './upstream-rate-limit.js';
 import { logger } from '../logger.js';
 
 export interface FetchParams {
@@ -135,7 +136,7 @@ async function fetchCursorBased(config: CollectionConfig, params: FetchParams): 
   };
 
   let cursor: string | undefined;
-  let collected: Record<string, unknown>[] = [];
+  const collected: Record<string, unknown>[] = [];
 
   while (collected.length < params.offset + params.limit) {
     const url = new URL(config.upstream.baseUrl);
@@ -205,9 +206,17 @@ async function fetchWfsUpstream(config: CollectionConfig, params: FetchParams): 
 }
 
 export async function fetchUpstreamItems(
+  collectionId: string,
   config: CollectionConfig,
   params: FetchParams,
 ): Promise<UpstreamPage> {
+  const bucket = getUpstreamBucket(collectionId);
+  if (!bucket.tryConsume()) {
+    const log = logger.adapter();
+    log.warning({ collectionId }, 'upstream rate limit exceeded');
+    throw new UpstreamError(429);
+  }
+
   if (config.upstream.type === 'wfs') {
     return fetchWfsUpstream(config, params);
   }
@@ -225,9 +234,17 @@ export async function fetchUpstreamItems(
 }
 
 export async function fetchUpstreamItem(
+  collectionId: string,
   config: CollectionConfig,
   itemId: string,
 ): Promise<Record<string, unknown>> {
+  const bucket = getUpstreamBucket(collectionId);
+  if (!bucket.tryConsume()) {
+    const log = logger.adapter();
+    log.warning({ collectionId }, 'upstream rate limit exceeded');
+    throw new UpstreamError(429);
+  }
+
   const url = `${config.upstream.baseUrl}/${itemId}`;
   const body = await fetchJson(url, config.timeout);
   return getByPath(body, config.upstream.responseMapping.item) as Record<string, unknown>;

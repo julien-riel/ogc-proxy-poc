@@ -4,18 +4,16 @@ import { conformance } from './conformance.js';
 import { listCollections, getCollectionById } from './collections.js';
 import { getItems, getItem } from './items.js';
 import { getQueryables } from './queryables.js';
+import { buildOpenApiSpec } from './openapi.js';
+import { getBaseUrl } from '../utils/base-url.js';
 
 export function createOgcRouter(jwtMiddleware: RequestHandler): Router {
   const router = Router();
 
   // Discovery endpoints — no auth
   router.get('/', landing);
-  router.get('/api', (_req, res) => {
-    res.json({
-      openapi: '3.0.0',
-      info: { title: 'OGC Proxy Municipal', version: '0.1.0' },
-      paths: {},
-    });
+  router.get('/api', (req, res) => {
+    res.json(buildOpenApiSpec(getBaseUrl(req)));
   });
   router.get('/conformance', conformance);
 
