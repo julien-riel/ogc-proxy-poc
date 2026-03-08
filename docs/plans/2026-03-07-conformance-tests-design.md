@@ -120,7 +120,7 @@ Requirements couverts :
 
 **Hors scope :**
 - `cql2-json` — Pas d'encodage JSON
-- `temporal-functions` — Pas de données temporelles dans le POC
+- `temporal-functions` — Pas de données temporelles dans le projet
 - `array-functions` — Pas de données array
 - `property-property` — Comparaison propriété-propriété
 - `arithmetic` — Expressions arithmétiques

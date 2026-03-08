@@ -42,6 +42,11 @@ export const paginationConfigSchema = z.discriminatedUnion('type', [
   cursorPaginationSchema,
 ]);
 
+export const rateLimitConfigSchema = z.object({
+  capacity: z.number().positive(),
+  refillRate: z.number().positive(),
+});
+
 export const collectionConfigSchema = z.object({
   title: z.string(),
   description: z.string().optional(),
@@ -50,9 +55,12 @@ export const collectionConfigSchema = z.object({
   maxFeatures: z.number().positive().optional(),
   maxPostFetchItems: z.number().positive().optional(),
   timeout: z.number().positive().optional(),
-  extent: z.object({
-    spatial: z.tuple([z.number(), z.number(), z.number(), z.number()]),
-  }).optional(),
+  rateLimit: rateLimitConfigSchema.optional(),
+  extent: z
+    .object({
+      spatial: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+    })
+    .optional(),
   upstream: z.object({
     type: z.enum(['rest', 'wfs']).optional(),
     baseUrl: z.string().url(),
@@ -108,6 +116,7 @@ export type OffsetLimitPagination = z.infer<typeof offsetLimitPaginationSchema>;
 export type PagePagination = z.infer<typeof pagePaginationSchema>;
 export type CursorPagination = z.infer<typeof cursorPaginationSchema>;
 export type PaginationConfig = z.infer<typeof paginationConfigSchema>;
+export type RateLimitConfig = z.infer<typeof rateLimitConfigSchema>;
 export type CollectionConfig = z.infer<typeof collectionConfigSchema>;
 export type DefaultsConfig = z.infer<typeof defaultsConfigSchema>;
 export type JwtConfig = z.infer<typeof jwtConfigSchema>;

@@ -50,7 +50,10 @@ async function fetchJson(url: string, timeoutMs?: number): Promise<Record<string
   try {
     const response = await fetch(url, { signal: controller.signal });
     const durationMs = Date.now() - start;
-    log.info({ url: redactUrl(url), status: response.status, durationMs }, `upstream ${response.status} in ${durationMs}ms`);
+    log.info(
+      { url: redactUrl(url), status: response.status, durationMs },
+      `upstream ${response.status} in ${durationMs}ms`,
+    );
     if (!response.ok) {
       throw new UpstreamError(response.status);
     }
@@ -163,16 +166,12 @@ async function fetchCursorBased(config: CollectionConfig, params: FetchParams): 
 
 async function fetchWfsUpstream(config: CollectionConfig, params: FetchParams): Promise<UpstreamPage> {
   const log = logger.adapter();
-  const url = buildWfsGetFeatureUrl(
-    config.upstream.baseUrl,
-    config.upstream.typeName!,
-    {
-      startIndex: params.offset,
-      count: params.limit,
-      version: config.upstream.version ?? '1.1.0',
-      bbox: params.bbox,
-    },
-  );
+  const url = buildWfsGetFeatureUrl(config.upstream.baseUrl, config.upstream.typeName!, {
+    startIndex: params.offset,
+    count: params.limit,
+    version: config.upstream.version ?? '1.1.0',
+    bbox: params.bbox,
+  });
 
   const start = Date.now();
   const timeoutMs = config.timeout ?? DEFAULT_TIMEOUT_MS;
@@ -182,11 +181,14 @@ async function fetchWfsUpstream(config: CollectionConfig, params: FetchParams): 
   try {
     const response = await fetch(url, { signal: controller.signal });
     const durationMs = Date.now() - start;
-    log.info({ url: redactUrl(url), status: response.status, durationMs }, `upstream WFS ${response.status} in ${durationMs}ms`);
+    log.info(
+      { url: redactUrl(url), status: response.status, durationMs },
+      `upstream WFS ${response.status} in ${durationMs}ms`,
+    );
     if (!response.ok) {
       throw new UpstreamError(response.status);
     }
-    const body = await response.json() as Record<string, unknown>;
+    const body = (await response.json()) as Record<string, unknown>;
     const features = (body.features ?? []) as Record<string, unknown>[];
     const total = body.totalFeatures as number | undefined;
 
@@ -210,7 +212,7 @@ export async function fetchUpstreamItems(
   config: CollectionConfig,
   params: FetchParams,
 ): Promise<UpstreamPage> {
-  const bucket = getUpstreamBucket(collectionId);
+  const bucket = getUpstreamBucket(collectionId, config.rateLimit?.capacity, config.rateLimit?.refillRate);
   if (!bucket.tryConsume()) {
     const log = logger.adapter();
     log.warning({ collectionId }, 'upstream rate limit exceeded');
@@ -238,7 +240,7 @@ export async function fetchUpstreamItem(
   config: CollectionConfig,
   itemId: string,
 ): Promise<Record<string, unknown>> {
-  const bucket = getUpstreamBucket(collectionId);
+  const bucket = getUpstreamBucket(collectionId, config.rateLimit?.capacity, config.rateLimit?.refillRate);
   if (!bucket.tryConsume()) {
     const log = logger.adapter();
     log.warning({ collectionId }, 'upstream rate limit exceeded');

@@ -31,13 +31,20 @@ export function evaluateFilter(node: CqlNode, feature: Feature): boolean {
       switch (node.operator) {
         // Intentional loose equality: GeoJSON properties may be strings ("42")
         // while CQL2 parses numeric literals as numbers (42).
-        case '=': return val == target;
-        case '<>': return val != target;
-        case '<': return (val as number) < (target as number);
-        case '>': return (val as number) > (target as number);
-        case '<=': return (val as number) <= (target as number);
-        case '>=': return (val as number) >= (target as number);
-        default: return false;
+        case '=':
+          return val == target;
+        case '<>':
+          return val != target;
+        case '<':
+          return (val as number) < (target as number);
+        case '>':
+          return (val as number) > (target as number);
+        case '<=':
+          return (val as number) <= (target as number);
+        case '>=':
+          return (val as number) >= (target as number);
+        default:
+          return false;
       }
     }
 
@@ -57,7 +64,7 @@ export function evaluateFilter(node: CqlNode, feature: Feature): boolean {
 
     case 'in': {
       const val = getPropertyValue(feature, node.property);
-      return node.values.some(v => val == v);
+      return node.values.some((v) => val == v);
     }
 
     case 'between': {
@@ -69,6 +76,35 @@ export function evaluateFilter(node: CqlNode, feature: Feature): boolean {
       const val = getPropertyValue(feature, node.property);
       const isNull = val === null || val === undefined;
       return node.negated ? !isNull : isNull;
+    }
+
+    case 'temporal': {
+      const val = getPropertyValue(feature, node.property);
+      if (val === null || val === undefined) return false;
+      const propDate = new Date(String(val)).getTime();
+      if (isNaN(propDate)) return false;
+      const targetDate = new Date(node.value).getTime();
+      if (isNaN(targetDate)) {
+        throw new Error(`Invalid temporal filter: '${node.value}' is not a valid date`);
+      }
+      switch (node.operator) {
+        case 'T_BEFORE':
+          return propDate < targetDate;
+        case 'T_AFTER':
+          return propDate > targetDate;
+        case 'T_DURING': {
+          if (!node.value2) {
+            throw new Error('T_DURING requires two timestamps');
+          }
+          const endDate = new Date(node.value2).getTime();
+          if (isNaN(endDate)) {
+            throw new Error(`Invalid temporal filter: '${node.value2}' is not a valid date`);
+          }
+          return propDate >= targetDate && propDate <= endDate;
+        }
+        default:
+          return false;
+      }
     }
 
     case 'spatial': {
@@ -85,19 +121,11 @@ export function evaluateFilter(node: CqlNode, feature: Feature): boolean {
         case 'S_DWITHIN': {
           if (!node.distance) return false;
           const refCoords = (node.geometry as GeoJSON.Point).coordinates;
-          const featureCoords = geom.type === 'Point'
-            ? (geom as GeoJSON.Point).coordinates
-            : null;
+          const featureCoords = geom.type === 'Point' ? (geom as GeoJSON.Point).coordinates : null;
           if (!featureCoords) return false;
 
-          const threshold = node.distanceUnits === 'meters'
-            ? node.distance / 1000
-            : node.distance;
-          const d = turfDistance(
-            turfPoint(featureCoords),
-            turfPoint(refCoords),
-            { units: 'kilometers' },
-          );
+          const threshold = node.distanceUnits === 'meters' ? node.distance / 1000 : node.distance;
+          const d = turfDistance(turfPoint(featureCoords), turfPoint(refCoords), { units: 'kilometers' });
           return d <= threshold;
         }
 

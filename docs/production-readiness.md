@@ -1,6 +1,6 @@
 # Production Readiness — Gap Analysis
 
-Ce document liste les lacunes identifiees entre l'etat actuel du POC et un
+Ce document liste les lacunes identifiees entre l'etat actuel du projet et un
 deploiement en production. Les items sont classes par priorite.
 
 ---

@@ -129,6 +129,9 @@ collections:
       spatial: [-79.76, 44.99, -56.93, 62.59]
     description: "Municipalites regionales de comte du Quebec (PAVICS Ouranos)"
     plugin: "wfs-upstream"
+    rateLimit:
+      capacity: 10
+      refillRate: 5
     upstream:
       type: "wfs"
       baseUrl: "https://pavics.ouranos.ca/geoserver/wfs"

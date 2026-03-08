@@ -1,11 +1,39 @@
 import type { Request } from 'express';
 import { getRegistry } from '../engine/registry.js';
+import type { CollectionConfig } from '../engine/types.js';
 import { escapeXml } from '../utils/xml.js';
 
+/**
+ * Builds FeatureType XML elements from registry collections.
+ * Shared by both WFS 2.0.0 and WFS 1.1.0 capabilities builders.
+ */
+function buildFeatureTypesXml(
+  collections: Record<string, CollectionConfig>,
+  srsTag: 'DefaultCRS' | 'DefaultSRS',
+  otherSrsTag: 'OtherCRS' | 'OtherSRS',
+): string {
+  const defaultExtent: [number, number, number, number] = [-73.98, 45.41, -73.47, 45.7];
+  return Object.entries(collections)
+    .map(([id, config]) => {
+      const [minLon, minLat, maxLon, maxLat] = config.extent?.spatial ?? defaultExtent;
+      return `
+    <FeatureType>
+      <Name>${escapeXml(id)}</Name>
+      <Title>${escapeXml(config.title)}</Title>
+      <Abstract>${escapeXml(config.description || '')}</Abstract>
+      <${srsTag}>urn:ogc:def:crs:OGC:1.3:CRS84</${srsTag}>
+      <${otherSrsTag}>urn:ogc:def:crs:EPSG::3857</${otherSrsTag}>
+      <ows:WGS84BoundingBox>
+        <ows:LowerCorner>${minLon} ${minLat}</ows:LowerCorner>
+        <ows:UpperCorner>${maxLon} ${maxLat}</ows:UpperCorner>
+      </ows:WGS84BoundingBox>
+    </FeatureType>`;
+    })
+    .join('\n');
+}
+
 function getServiceUrl(req: Request): string {
-  const host = process.env.BASE_URL
-    ? process.env.BASE_URL.replace('/ogc', '')
-    : `${req.protocol}://${req.get('host')}`;
+  const host = process.env.BASE_URL ? process.env.BASE_URL.replace('/ogc', '') : `${req.protocol}://${req.get('host')}`;
   return `${host}/wfs`;
 }
 
@@ -16,23 +44,7 @@ export function buildCapabilities20Xml(req: Request): string {
   const registry = getRegistry();
   const serviceUrl = getServiceUrl(req);
 
-  const defaultExtent: [number, number, number, number] = [-73.98, 45.41, -73.47, 45.70];
-
-  const featureTypes = Object.entries(registry.collections).map(([id, config]) => {
-    const [minLon, minLat, maxLon, maxLat] = config.extent?.spatial ?? defaultExtent;
-    return `
-    <FeatureType>
-      <Name>${escapeXml(id)}</Name>
-      <Title>${escapeXml(config.title)}</Title>
-      <Abstract>${escapeXml(config.description || '')}</Abstract>
-      <DefaultCRS>urn:ogc:def:crs:OGC:1.3:CRS84</DefaultCRS>
-      <OtherCRS>urn:ogc:def:crs:EPSG::3857</OtherCRS>
-      <ows:WGS84BoundingBox>
-        <ows:LowerCorner>${minLon} ${minLat}</ows:LowerCorner>
-        <ows:UpperCorner>${maxLon} ${maxLat}</ows:UpperCorner>
-      </ows:WGS84BoundingBox>
-    </FeatureType>`;
-  }).join('\n');
+  const featureTypes = buildFeatureTypesXml(registry.collections, 'DefaultCRS', 'OtherCRS');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <wfs:WFS_Capabilities
@@ -151,23 +163,7 @@ export function buildCapabilitiesXml(req: Request): string {
   const registry = getRegistry();
   const serviceUrl = getServiceUrl(req);
 
-  const defaultExtent: [number, number, number, number] = [-73.98, 45.41, -73.47, 45.70];
-
-  const featureTypes = Object.entries(registry.collections).map(([id, config]) => {
-    const [minLon, minLat, maxLon, maxLat] = config.extent?.spatial ?? defaultExtent;
-    return `
-    <FeatureType>
-      <Name>${escapeXml(id)}</Name>
-      <Title>${escapeXml(config.title)}</Title>
-      <Abstract>${escapeXml(config.description || '')}</Abstract>
-      <DefaultSRS>urn:ogc:def:crs:OGC:1.3:CRS84</DefaultSRS>
-      <OtherSRS>urn:ogc:def:crs:EPSG::3857</OtherSRS>
-      <ows:WGS84BoundingBox>
-        <ows:LowerCorner>${minLon} ${minLat}</ows:LowerCorner>
-        <ows:UpperCorner>${maxLon} ${maxLat}</ows:UpperCorner>
-      </ows:WGS84BoundingBox>
-    </FeatureType>`;
-  }).join('\n');
+  const featureTypes = buildFeatureTypesXml(registry.collections, 'DefaultSRS', 'OtherSRS');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <wfs:WFS_Capabilities

@@ -151,8 +151,8 @@ Conformance class URI: `http://www.opengis.net/spec/cql2/1.0/conf/cql2-text`
 | Conformance Class | Reason |
 |---|---|
 | CQL2 JSON (cql2-json) | Only text encoding implemented |
-| Temporal Functions | No temporal data in POC |
-| Array Functions | No array data in POC |
+| Temporal Functions | No temporal data in this project |
+| Array Functions | No array data in this project |
 | Property-Property | Not implemented |
 | Arithmetic | Not implemented |
 | Case/Accent Insensitive | Not implemented |

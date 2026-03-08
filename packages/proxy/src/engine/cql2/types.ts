@@ -6,7 +6,8 @@ export type CqlNode =
   | CqlNot
   | CqlIn
   | CqlBetween
-  | CqlIsNull;
+  | CqlIsNull
+  | CqlTemporal;
 
 export interface CqlComparison {
   type: 'comparison';
@@ -54,11 +55,27 @@ export interface CqlIsNull {
 
 export interface CqlSpatial {
   type: 'spatial';
-  operator: 'S_INTERSECTS' | 'S_WITHIN' | 'S_DWITHIN' | 'S_CONTAINS' | 'S_CROSSES' | 'S_TOUCHES' | 'S_DISJOINT' | 'S_EQUALS';
+  operator:
+    | 'S_INTERSECTS'
+    | 'S_WITHIN'
+    | 'S_DWITHIN'
+    | 'S_CONTAINS'
+    | 'S_CROSSES'
+    | 'S_TOUCHES'
+    | 'S_DISJOINT'
+    | 'S_EQUALS';
   property: string;
   geometry: GeoJSON.Geometry;
   distance?: number;
   distanceUnits?: string;
+}
+
+export interface CqlTemporal {
+  type: 'temporal';
+  operator: 'T_BEFORE' | 'T_AFTER' | 'T_DURING';
+  property: string;
+  value: string;
+  value2?: string;
 }
 
 export type Token =
