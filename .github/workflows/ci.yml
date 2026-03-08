@@ -65,8 +65,8 @@ jobs:
       - run: npm run build
       - name: Start mock-api and proxy
         run: |
-          npm run dev:mock &
-          npm run dev:proxy &
+          node packages/mock-api/dist/index.js &
+          node packages/proxy/dist/index.js &
       - name: Wait for services to be ready
         run: |
           timeout 30 bash -c 'until curl -sf http://localhost:3000/health; do sleep 1; done'
