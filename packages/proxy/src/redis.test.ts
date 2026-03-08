@@ -1,6 +1,6 @@
 // packages/proxy/src/redis.test.ts
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { createRedisClient, getRedisStatus } from './redis.js';
+import { createRedisClient, getRedisStatus, getKeyPrefix } from './redis.js';
 
 describe('createRedisClient', () => {
   afterEach(() => {
@@ -23,5 +23,21 @@ describe('createRedisClient', () => {
 describe('getRedisStatus', () => {
   it('returns disconnected when client is null', () => {
     expect(getRedisStatus(null)).toBe('disconnected');
+  });
+});
+
+describe('getKeyPrefix', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('returns ogc: by default', () => {
+    delete process.env.REDIS_KEY_PREFIX;
+    expect(getKeyPrefix()).toBe('ogc:');
+  });
+
+  it('returns custom prefix from env', () => {
+    vi.stubEnv('REDIS_KEY_PREFIX', 'myapp:');
+    expect(getKeyPrefix()).toBe('myapp:');
   });
 });
