@@ -206,11 +206,14 @@ async function fetchWfsUpstream(config: CollectionConfig, params: FetchParams): 
 }
 
 export async function fetchUpstreamItems(
+  collectionId: string,
   config: CollectionConfig,
   params: FetchParams,
 ): Promise<UpstreamPage> {
-  const bucket = getUpstreamBucket(config.title);
+  const bucket = getUpstreamBucket(collectionId);
   if (!bucket.tryConsume()) {
+    const log = logger.adapter();
+    log.warning({ collectionId }, 'upstream rate limit exceeded');
     throw new UpstreamError(429);
   }
 
@@ -231,9 +234,17 @@ export async function fetchUpstreamItems(
 }
 
 export async function fetchUpstreamItem(
+  collectionId: string,
   config: CollectionConfig,
   itemId: string,
 ): Promise<Record<string, unknown>> {
+  const bucket = getUpstreamBucket(collectionId);
+  if (!bucket.tryConsume()) {
+    const log = logger.adapter();
+    log.warning({ collectionId }, 'upstream rate limit exceeded');
+    throw new UpstreamError(429);
+  }
+
   const url = `${config.upstream.baseUrl}/${itemId}`;
   const body = await fetchJson(url, config.timeout);
   return getByPath(body, config.upstream.responseMapping.item) as Record<string, unknown>;

@@ -56,7 +56,8 @@ export async function createApp() {
         return res.json({ status: 'ready', collections: Object.keys(reg.collections).length });
       }
       return res.status(503).json({ status: 'not ready', reason: 'no collections loaded' });
-    } catch {
+    } catch (err) {
+      log.error({ err }, 'readiness check failed');
       return res.status(503).json({ status: 'not ready', reason: 'registry not loaded' });
     }
   });

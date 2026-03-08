@@ -306,7 +306,7 @@ export async function getItems(req: Request, res: Response) {
     ogcReq = await runHook(plugin, 'transformRequest', ogcReq);
 
     // Fetch upstream
-    const upstream = await fetchUpstreamItems(config, {
+    const upstream = await fetchUpstreamItems(collectionId, config, {
       offset: ogcReq.offset,
       limit: fetchLimit,
       bbox: ogcReq.bbox,
@@ -388,7 +388,7 @@ export async function getItem(req: Request, res: Response) {
 
   try {
     const plugin = await getCollectionPlugin(collectionId);
-    const raw = await fetchUpstreamItem(config, featureId);
+    const raw = await fetchUpstreamItem(collectionId, config, featureId);
     if (!raw) {
       return res.status(404).json({ code: 'NotFound', description: `Feature '${featureId}' not found` });
     }
@@ -416,6 +416,9 @@ export async function getItem(req: Request, res: Response) {
     res.set('Content-Type', 'application/geo+json');
     res.json(response);
   } catch (err) {
+    if (err instanceof UpstreamError && err.statusCode === 429) {
+      return res.status(429).json({ code: 'TooManyRequests', description: 'Upstream rate limit exceeded' });
+    }
     if (err instanceof UpstreamError && err.statusCode === 404) {
       return res.status(404).json({ code: 'NotFound', description: `Feature '${featureId}' not found` });
     }
