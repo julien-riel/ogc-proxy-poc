@@ -14,6 +14,8 @@ collections:
     extent:
       spatial: [-73.98, 45.41, -73.47, 45.70]
     description: "Bornes-fontaines municipales"
+    cache:
+      ttlSeconds: 300
     upstream:
       type: "rest"
       baseUrl: "${UPSTREAM_HOST}/api/bornes-fontaines"

@@ -1,4 +1,9 @@
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
   mock-api:
     build:
       context: ./packages/mock-api
@@ -14,9 +19,11 @@ services:
       - "3000:3000"
     depends_on:
       - mock-api
+      - redis
     environment:
       PORT: "3000"
       UPSTREAM_HOST: "http://mock-api:3001"
+      REDIS_URL: "redis://redis:6379"
 
   mapstore:
     image: geosolutionsit/mapstore2

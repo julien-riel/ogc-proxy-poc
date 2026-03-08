@@ -47,6 +47,10 @@ export const rateLimitConfigSchema = z.object({
   refillRate: z.number().positive(),
 });
 
+export const cacheConfigSchema = z.object({
+  ttlSeconds: z.number().positive(),
+});
+
 export const collectionConfigSchema = z.object({
   title: z.string(),
   description: z.string().optional(),
@@ -56,6 +60,7 @@ export const collectionConfigSchema = z.object({
   maxPostFetchItems: z.number().positive().optional(),
   timeout: z.number().positive().optional(),
   rateLimit: rateLimitConfigSchema.optional(),
+  cache: cacheConfigSchema.optional(),
   extent: z
     .object({
       spatial: z.tuple([z.number(), z.number(), z.number(), z.number()]),
@@ -117,6 +122,7 @@ export type PagePagination = z.infer<typeof pagePaginationSchema>;
 export type CursorPagination = z.infer<typeof cursorPaginationSchema>;
 export type PaginationConfig = z.infer<typeof paginationConfigSchema>;
 export type RateLimitConfig = z.infer<typeof rateLimitConfigSchema>;
+export type CacheConfig = z.infer<typeof cacheConfigSchema>;
 export type CollectionConfig = z.infer<typeof collectionConfigSchema>;
 export type DefaultsConfig = z.infer<typeof defaultsConfigSchema>;
 export type JwtConfig = z.infer<typeof jwtConfigSchema>;

@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+
+  test-unit:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run test:coverage
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: packages/proxy/coverage/
+
+  build:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+  test-conformance:
+    needs: lint
+    runs-on: ubuntu-latest
+    env:
+      UPSTREAM_HOST: http://localhost:3001
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Start mock-api and proxy
+        run: |
+          npm run dev:mock &
+          npm run dev:proxy &
+      - name: Wait for services to be ready
+        run: |
+          timeout 30 bash -c 'until curl -sf http://localhost:3000/health; do sleep 1; done'
+          timeout 30 bash -c 'until curl -sf http://localhost:3001/bornes-fontaines; do sleep 1; done'
+      - run: npm run test:conformance

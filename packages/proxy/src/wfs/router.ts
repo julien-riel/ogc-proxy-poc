@@ -1,8 +1,10 @@
 import { Router, type RequestHandler } from 'express';
+import type Redis from 'ioredis';
 import express from 'express';
 import { buildCapabilitiesXml, buildCapabilities20Xml } from './capabilities.js';
 import { buildDescribeFeatureType } from './describe.js';
 import { parseGetFeatureGet, parseGetFeaturePost, executeGetFeature } from './get-feature.js';
+import type { CacheService } from '../engine/cache.js';
 import { logger } from '../logger.js';
 import { UpstreamError, UpstreamTimeoutError } from '../engine/adapter.js';
 
@@ -46,13 +48,16 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
         case 'getfeature': {
           try {
             const params = parseGetFeatureGet(query);
-            const result = await executeGetFeature(params);
+            const redis = req.app.get('redis') as Redis | null;
+            const keyPrefix = req.app.get('redisKeyPrefix') as string | undefined;
+            const cache = req.app.get('cache') as CacheService | null;
+            const result = await executeGetFeature(params, redis, keyPrefix, cache);
             if (!result) return res.status(404).json({ code: 'NotFound', description: 'Requested type not found' });
             return res.json(result);
           } catch (err) {
             if (err instanceof UpstreamError && err.statusCode === 429) {
               const log = logger.wfs();
-              log.warning({ }, 'WFS rate limited');
+              log.warning({}, 'WFS rate limited');
               return res.status(429).json({ code: 'TooManyRequests', description: 'Upstream rate limit exceeded' });
             }
             if (err instanceof UpstreamTimeoutError) {
@@ -67,7 +72,9 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
         }
 
         default:
-          return res.status(400).json({ code: 'InvalidRequest', description: 'Unknown or missing WFS request parameter' });
+          return res
+            .status(400)
+            .json({ code: 'InvalidRequest', description: 'Unknown or missing WFS request parameter' });
       }
     });
   });
@@ -78,13 +85,16 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
 
     try {
       const params = parseGetFeaturePost(body);
-      const result = await executeGetFeature(params);
+      const redis = req.app.get('redis') as Redis | null;
+      const keyPrefix = req.app.get('redisKeyPrefix') as string | undefined;
+      const cache = req.app.get('cache') as CacheService | null;
+      const result = await executeGetFeature(params, redis, keyPrefix, cache);
       if (!result) return res.status(404).json({ code: 'NotFound', description: 'Requested type not found' });
       return res.json(result);
     } catch (err) {
       if (err instanceof UpstreamError && err.statusCode === 429) {
         const log = logger.wfs();
-        log.warning({ }, 'WFS rate limited');
+        log.warning({}, 'WFS rate limited');
         return res.status(429).json({ code: 'TooManyRequests', description: 'Upstream rate limit exceeded' });
       }
       if (err instanceof UpstreamTimeoutError) {
