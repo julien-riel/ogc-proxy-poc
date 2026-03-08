@@ -6,7 +6,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 let mockApi: ChildProcess;
 let proxy: ChildProcess;
 
-async function waitForServer(url: string, maxWait = 15000): Promise<void> {
+async function waitForServer(url: string, maxWait = 30000): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < maxWait) {
     try {
