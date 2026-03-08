@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
 import { createOgcRouter } from './ogc/router.js';
 import { createWfsRouter } from './wfs/router.js';
+import { createAdminRouter } from './admin/router.js';
 import { loadRegistry, getRegistry } from './engine/registry.js';
 import { createJwtMiddleware } from './auth/jwt.js';
 import { initLogging, logger, createCorrelationIdMiddleware } from './logger.js';
@@ -75,6 +76,7 @@ export async function createApp() {
   });
   app.use('/ogc', createOgcRouter(jwtMiddleware));
   app.use('/wfs', createWfsRouter(jwtMiddleware));
+  app.use('/admin', createAdminRouter(jwtMiddleware, cache));
   app.get('/health', (_req, res) => res.json({ status: 'ok' }));
   app.get('/ready', (_req, res) => {
     try {
