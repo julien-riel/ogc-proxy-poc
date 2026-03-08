@@ -2,6 +2,7 @@ import { XMLParser } from 'fast-xml-parser';
 import type Redis from 'ioredis';
 import { getCollection } from '../engine/registry.js';
 import { fetchUpstreamItems } from '../engine/adapter.js';
+import type { CacheService } from '../engine/cache.js';
 import { buildFeatureSafe } from '../engine/geojson-builder.js';
 import { parseFilterXml } from './filter-encoding.js';
 import { evaluateFilter } from '../engine/cql2/evaluator.js';
@@ -134,14 +135,26 @@ export function parseGetFeaturePost(body: string): WfsGetFeatureParams {
   };
 }
 
-export async function executeGetFeature(params: WfsGetFeatureParams, redis?: Redis | null, keyPrefix?: string) {
+export async function executeGetFeature(
+  params: WfsGetFeatureParams,
+  redis?: Redis | null,
+  keyPrefix?: string,
+  cache?: CacheService | null,
+) {
   const config = getCollection(params.typeName);
   if (!config) return null;
 
   const srs = normalizeSrs(params.srsName);
 
   if (params.resultType === 'hits') {
-    const upstream = await fetchUpstreamItems(params.typeName, config, { offset: 0, limit: 1 }, redis, keyPrefix);
+    const upstream = await fetchUpstreamItems(
+      params.typeName,
+      config,
+      { offset: 0, limit: 1 },
+      redis,
+      keyPrefix,
+      cache,
+    );
     return {
       type: 'FeatureCollection',
       totalFeatures: upstream.total ?? 0,
@@ -170,6 +183,7 @@ export async function executeGetFeature(params: WfsGetFeatureParams, redis?: Red
     },
     redis,
     keyPrefix,
+    cache,
   );
 
   let features = upstream.items

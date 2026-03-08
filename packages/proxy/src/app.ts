@@ -9,6 +9,7 @@ import { loadRegistry, getRegistry } from './engine/registry.js';
 import { createJwtMiddleware } from './auth/jwt.js';
 import { initLogging, logger, createCorrelationIdMiddleware } from './logger.js';
 import { createRedisClient, getRedisStatus, getKeyPrefix } from './redis.js';
+import { CacheService } from './engine/cache.js';
 
 export async function createApp() {
   initLogging();
@@ -27,9 +28,12 @@ export async function createApp() {
 
   const jwtMiddleware = await createJwtMiddleware(getRegistry().security?.jwt);
 
+  const cache = new CacheService(redis, getKeyPrefix());
+
   const app = express();
   app.set('redis', redis);
   app.set('redisKeyPrefix', getKeyPrefix());
+  app.set('cache', cache);
   app.use(helmet());
   const corsOrigin = process.env.CORS_ORIGIN;
   app.use(cors(corsOrigin ? { origin: corsOrigin.split(',') } : undefined));

@@ -1,5 +1,6 @@
 import type Redis from 'ioredis';
 import type { CollectionConfig } from './types.js';
+import type { CacheService } from './cache.js';
 import { getByPath } from './geojson-builder.js';
 import { buildWfsGetFeatureUrl } from '../plugins/wfs-upstream.js';
 import { getUpstreamBucket, TokenBucket } from './upstream-rate-limit.js';
@@ -214,7 +215,20 @@ export async function fetchUpstreamItems(
   params: FetchParams,
   redis?: Redis | null,
   keyPrefix?: string,
+  cache?: CacheService | null,
 ): Promise<UpstreamPage> {
+  // Check cache first
+  if (cache && config.cache?.ttlSeconds) {
+    const cacheParams = {
+      offset: params.offset,
+      limit: params.limit,
+      bbox: params.bbox,
+      upstreamParams: params.upstreamParams,
+    };
+    const cached = await cache.get(collectionId, cacheParams);
+    if (cached) return cached as UpstreamPage;
+  }
+
   const bucket = getUpstreamBucket(
     collectionId,
     config.rateLimit?.capacity,
@@ -229,20 +243,38 @@ export async function fetchUpstreamItems(
     throw new UpstreamError(429);
   }
 
+  let result: UpstreamPage;
+
   if (config.upstream.type === 'wfs') {
-    return fetchWfsUpstream(config, params);
+    result = await fetchWfsUpstream(config, params);
+  } else {
+    switch (config.upstream.pagination.type) {
+      case 'offset-limit':
+        result = await fetchOffsetLimit(config, params);
+        break;
+      case 'page-pageSize':
+        result = await fetchPageBased(config, params);
+        break;
+      case 'cursor':
+        result = await fetchCursorBased(config, params);
+        break;
+      default:
+        throw new Error(`Unknown pagination type: ${(config.upstream.pagination as any).type}`);
+    }
   }
 
-  switch (config.upstream.pagination.type) {
-    case 'offset-limit':
-      return fetchOffsetLimit(config, params);
-    case 'page-pageSize':
-      return fetchPageBased(config, params);
-    case 'cursor':
-      return fetchCursorBased(config, params);
-    default:
-      throw new Error(`Unknown pagination type: ${(config.upstream.pagination as any).type}`);
+  // Store in cache after successful fetch
+  if (cache && config.cache?.ttlSeconds) {
+    const cacheParams = {
+      offset: params.offset,
+      limit: params.limit,
+      bbox: params.bbox,
+      upstreamParams: params.upstreamParams,
+    };
+    await cache.set(collectionId, cacheParams, result, config.cache.ttlSeconds);
   }
+
+  return result;
 }
 
 export async function fetchUpstreamItem(
@@ -251,7 +283,14 @@ export async function fetchUpstreamItem(
   itemId: string,
   redis?: Redis | null,
   keyPrefix?: string,
+  cache?: CacheService | null,
 ): Promise<Record<string, unknown>> {
+  // Check cache first
+  if (cache && config.cache?.ttlSeconds) {
+    const cached = await cache.get(collectionId, { itemId });
+    if (cached) return cached as Record<string, unknown>;
+  }
+
   const bucket = getUpstreamBucket(
     collectionId,
     config.rateLimit?.capacity,
@@ -268,5 +307,12 @@ export async function fetchUpstreamItem(
 
   const url = `${config.upstream.baseUrl}/${itemId}`;
   const body = await fetchJson(url, config.timeout);
-  return getByPath(body, config.upstream.responseMapping.item) as Record<string, unknown>;
+  const result = getByPath(body, config.upstream.responseMapping.item) as Record<string, unknown>;
+
+  // Store in cache after successful fetch
+  if (cache && config.cache?.ttlSeconds) {
+    await cache.set(collectionId, { itemId }, result, config.cache.ttlSeconds);
+  }
+
+  return result;
 }

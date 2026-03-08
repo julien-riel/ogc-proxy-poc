@@ -12,6 +12,7 @@ import type { CqlNode } from '../engine/cql2/types.js';
 import type { PropertyConfig } from '../engine/types.js';
 import { parseSortby, validateSortable, buildUpstreamSort } from '../engine/sorting.js';
 import { getBaseUrl } from '../utils/base-url.js';
+import type { CacheService } from '../engine/cache.js';
 import { logger } from '../logger.js';
 
 export function parseBbox(bboxStr: string): [number, number, number, number] | undefined {
@@ -305,6 +306,7 @@ export async function getItems(req: Request, res: Response) {
     // Fetch upstream
     const redis = req.app.get('redis') as Redis | null;
     const keyPrefix = req.app.get('redisKeyPrefix') as string | undefined;
+    const cache = req.app.get('cache') as CacheService | null;
     const upstream = await fetchUpstreamItems(
       collectionId,
       config,
@@ -316,6 +318,7 @@ export async function getItems(req: Request, res: Response) {
       },
       redis,
       keyPrefix,
+      cache,
     );
 
     // Hook: transformUpstreamResponse
@@ -398,7 +401,8 @@ export async function getItem(req: Request, res: Response) {
     const plugin = await getCollectionPlugin(collectionId);
     const redis = req.app.get('redis') as Redis | null;
     const keyPrefix = req.app.get('redisKeyPrefix') as string | undefined;
-    const raw = await fetchUpstreamItem(collectionId, config, featureId, redis, keyPrefix);
+    const cache = req.app.get('cache') as CacheService | null;
+    const raw = await fetchUpstreamItem(collectionId, config, featureId, redis, keyPrefix, cache);
     if (!raw) {
       return res.status(404).json({ code: 'NotFound', description: `Feature '${featureId}' not found` });
     }

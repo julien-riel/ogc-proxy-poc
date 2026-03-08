@@ -4,6 +4,7 @@ import express from 'express';
 import { buildCapabilitiesXml, buildCapabilities20Xml } from './capabilities.js';
 import { buildDescribeFeatureType } from './describe.js';
 import { parseGetFeatureGet, parseGetFeaturePost, executeGetFeature } from './get-feature.js';
+import type { CacheService } from '../engine/cache.js';
 import { logger } from '../logger.js';
 import { UpstreamError, UpstreamTimeoutError } from '../engine/adapter.js';
 
@@ -49,7 +50,8 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
             const params = parseGetFeatureGet(query);
             const redis = req.app.get('redis') as Redis | null;
             const keyPrefix = req.app.get('redisKeyPrefix') as string | undefined;
-            const result = await executeGetFeature(params, redis, keyPrefix);
+            const cache = req.app.get('cache') as CacheService | null;
+            const result = await executeGetFeature(params, redis, keyPrefix, cache);
             if (!result) return res.status(404).json({ code: 'NotFound', description: 'Requested type not found' });
             return res.json(result);
           } catch (err) {
@@ -85,7 +87,8 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
       const params = parseGetFeaturePost(body);
       const redis = req.app.get('redis') as Redis | null;
       const keyPrefix = req.app.get('redisKeyPrefix') as string | undefined;
-      const result = await executeGetFeature(params, redis, keyPrefix);
+      const cache = req.app.get('cache') as CacheService | null;
+      const result = await executeGetFeature(params, redis, keyPrefix, cache);
       if (!result) return res.status(404).json({ code: 'NotFound', description: 'Requested type not found' });
       return res.json(result);
     } catch (err) {
