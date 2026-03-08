@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { TokenBucket } from './upstream-rate-limit.js';
+import { TokenBucket, getUpstreamBucket } from './upstream-rate-limit.js';
 
 describe('TokenBucket', () => {
   beforeEach(() => {
@@ -29,5 +29,12 @@ describe('TokenBucket', () => {
     expect(bucket.tryConsume()).toBe(false);
     vi.advanceTimersByTime(1000);
     expect(bucket.tryConsume()).toBe(true);
+  });
+
+  it('uses custom capacity when provided', () => {
+    const bucket = getUpstreamBucket('custom-test', 2, 0);
+    expect(bucket.tryConsume()).toBe(true);
+    expect(bucket.tryConsume()).toBe(true);
+    expect(bucket.tryConsume()).toBe(false);
   });
 });
