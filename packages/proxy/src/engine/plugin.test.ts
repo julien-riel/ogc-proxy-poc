@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { resolve } from 'path';
+import { tmpdir } from 'os';
+import { mkdirSync, writeFileSync, rmSync } from 'fs';
 import { loadPlugin, runHook, type CollectionPlugin } from './plugin.js';
 
 describe('Plugin system', () => {
@@ -16,6 +19,43 @@ describe('Plugin system', () => {
     it('returns null for unknown built-in name', async () => {
       const plugin = await loadPlugin('unknown-plugin-name');
       expect(plugin).toBeNull();
+    });
+
+    it('rejects path traversal in plugin name with PLUGINS_DIR', async () => {
+      const dir = resolve(tmpdir(), `plugins-traversal-${Date.now()}`);
+      mkdirSync(dir, { recursive: true });
+
+      process.env.PLUGINS_DIR = dir;
+      try {
+        const plugin = await loadPlugin('../../etc/passwd');
+        expect(plugin).toBeNull();
+      } finally {
+        delete process.env.PLUGINS_DIR;
+        rmSync(dir, { recursive: true });
+      }
+    });
+
+    it('loads a plugin from PLUGINS_DIR directory', async () => {
+      const dir = resolve(tmpdir(), `plugins-test-${Date.now()}`);
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(
+        resolve(dir, 'my-plugin.js'),
+        `
+        export default {
+          skipGeojsonBuilder: true,
+        };
+      `,
+      );
+
+      process.env.PLUGINS_DIR = dir;
+      try {
+        const plugin = await loadPlugin('my-plugin');
+        expect(plugin).toBeDefined();
+        expect(plugin!.skipGeojsonBuilder).toBe(true);
+      } finally {
+        delete process.env.PLUGINS_DIR;
+        rmSync(dir, { recursive: true });
+      }
     });
   });
 

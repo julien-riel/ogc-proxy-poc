@@ -1,4 +1,6 @@
 import type { Feature } from 'geojson';
+import { existsSync } from 'fs';
+import { resolve } from 'path';
 import { wfsUpstreamPlugin } from '../plugins/wfs-upstream.js';
 
 export interface OgcRequest {
@@ -57,16 +59,39 @@ export function registerBuiltinPlugin(name: string, plugin: CollectionPlugin): v
 export async function loadPlugin(pluginRef: string | undefined): Promise<CollectionPlugin | null> {
   if (!pluginRef) return null;
 
-  if (!pluginRef.startsWith('./') && !pluginRef.startsWith('/')) {
-    return builtinPlugins[pluginRef] ?? null;
+  // File path: load directly
+  if (pluginRef.startsWith('./') || pluginRef.startsWith('/')) {
+    try {
+      const mod = await import(pluginRef);
+      return (mod.default ?? mod) as CollectionPlugin;
+    } catch {
+      return null;
+    }
   }
 
-  try {
-    const mod = await import(pluginRef);
-    return (mod.default ?? mod) as CollectionPlugin;
-  } catch {
-    return null;
+  // Built-in plugin
+  if (builtinPlugins[pluginRef]) {
+    return builtinPlugins[pluginRef];
   }
+
+  // External plugins directory
+  const pluginsDir = process.env.PLUGINS_DIR;
+  if (pluginsDir) {
+    const pluginPath = resolve(pluginsDir, `${pluginRef}.js`);
+    if (!pluginPath.startsWith(resolve(pluginsDir))) {
+      return null;
+    }
+    if (existsSync(pluginPath)) {
+      try {
+        const mod = await import(pluginPath);
+        return (mod.default ?? mod) as CollectionPlugin;
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  return null;
 }
 
 type HookName = keyof Omit<CollectionPlugin, 'skipGeojsonBuilder'>;
