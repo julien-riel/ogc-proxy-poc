@@ -23,14 +23,14 @@ async function waitForServer(url: string, maxWait = 30000): Promise<void> {
 export async function setup() {
   mockApi = spawn('npx', ['tsx', 'src/index.ts'], {
     cwd: resolve(__dirname, '../../mock-api'),
-    stdio: 'pipe',
+    stdio: 'inherit',
     env: { ...process.env, PORT: '3001' },
   });
 
   const { BASE_URL: _, ...cleanEnv } = process.env;
   proxy = spawn('npx', ['tsx', 'src/index.ts'], {
     cwd: resolve(__dirname, '../../proxy'),
-    stdio: 'pipe',
+    stdio: 'inherit',
     env: {
       ...cleanEnv,
       PORT: '3000',
