@@ -109,9 +109,12 @@ export class RedisTokenBucket {
 }
 
 const memoryBuckets = new Map<string, TokenBucket>();
+const redisBuckets = new Map<string, RedisTokenBucket>();
 
 /**
  * Get or create a token bucket for a given collection.
+ * Instances are cached so that the in-memory fallback inside
+ * RedisTokenBucket survives across requests during Redis outages.
  */
 export function getUpstreamBucket(
   collectionId: string,
@@ -121,7 +124,12 @@ export function getUpstreamBucket(
   keyPrefix = 'ogc:',
 ): TokenBucket | RedisTokenBucket {
   if (redis) {
-    return new RedisTokenBucket(redis, collectionId, capacity, refillRate, keyPrefix);
+    let bucket = redisBuckets.get(collectionId);
+    if (!bucket) {
+      bucket = new RedisTokenBucket(redis, collectionId, capacity, refillRate, keyPrefix);
+      redisBuckets.set(collectionId, bucket);
+    }
+    return bucket;
   }
   let bucket = memoryBuckets.get(collectionId);
   if (!bucket) {
