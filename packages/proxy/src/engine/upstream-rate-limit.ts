@@ -56,11 +56,13 @@ tokens = math.min(capacity, tokens + elapsed * refillRate)
 
 if tokens < 1 then
   redis.call('HMSET', key, 'tokens', tokens, 'lastRefill', now)
+  redis.call('EXPIRE', key, math.ceil(capacity / refillRate) * 2 + 60)
   return 0
 end
 
 tokens = tokens - 1
 redis.call('HMSET', key, 'tokens', tokens, 'lastRefill', now)
+redis.call('EXPIRE', key, math.ceil(capacity / refillRate) * 2 + 60)
 return 1
 `;
 
@@ -90,14 +92,13 @@ export class RedisTokenBucket {
    */
   async tryConsume(): Promise<boolean> {
     try {
-      // ioredis eval() sends EVALSHA/EVAL to Redis server for Lua execution
-      const result = await (this.redis as any).eval(
+      const result = await this.redis.eval(
         TOKEN_BUCKET_LUA,
         1,
         this.key,
-        this.capacity,
-        this.refillRate,
-        Date.now(),
+        String(this.capacity),
+        String(this.refillRate),
+        String(Date.now()),
       );
       return result === 1;
     } catch {
