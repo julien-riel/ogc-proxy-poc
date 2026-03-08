@@ -2,6 +2,7 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
+import { RedisStore } from 'rate-limit-redis';
 import { createOgcRouter } from './ogc/router.js';
 import { createWfsRouter } from './wfs/router.js';
 import { loadRegistry, getRegistry } from './engine/registry.js';
@@ -40,6 +41,14 @@ export async function createApp() {
     standardHeaders: true,
     legacyHeaders: false,
     message: { code: 'TooManyRequests', description: 'Rate limit exceeded' },
+    ...(redis
+      ? {
+          store: new RedisStore({
+            sendCommand: (...args: string[]) => redis.call(...args) as any,
+            prefix: `${getKeyPrefix()}rl:client:`,
+          }),
+        }
+      : {}),
   });
   app.use(limiter);
 
