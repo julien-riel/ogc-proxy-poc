@@ -1,3 +1,6 @@
+import type Redis from 'ioredis';
+import { logger } from '../logger.js';
+
 /**
  * Simple token bucket rate limiter for upstream requests.
  */
@@ -28,7 +31,84 @@ export class TokenBucket {
   }
 }
 
-const buckets = new Map<string, TokenBucket>();
+/**
+ * Lua script for atomic token bucket on Redis.
+ * Why Lua: without atomicity, concurrent instances can read the same token
+ * count and both grant a token when only one remains. Redis executes Lua
+ * scripts without interruption, eliminating race conditions.
+ *
+ * KEYS[1] = bucket key
+ * ARGV[1] = capacity, ARGV[2] = refillRate, ARGV[3] = now (ms)
+ * Returns 1 if consumed, 0 if rate limited.
+ */
+const TOKEN_BUCKET_LUA = `
+local key = KEYS[1]
+local capacity = tonumber(ARGV[1])
+local refillRate = tonumber(ARGV[2])
+local now = tonumber(ARGV[3])
+
+local data = redis.call('HMGET', key, 'tokens', 'lastRefill')
+local tokens = tonumber(data[1]) or capacity
+local lastRefill = tonumber(data[2]) or now
+
+local elapsed = (now - lastRefill) / 1000
+tokens = math.min(capacity, tokens + elapsed * refillRate)
+
+if tokens < 1 then
+  redis.call('HMSET', key, 'tokens', tokens, 'lastRefill', now)
+  return 0
+end
+
+tokens = tokens - 1
+redis.call('HMSET', key, 'tokens', tokens, 'lastRefill', now)
+return 1
+`;
+
+/**
+ * Redis-backed token bucket for distributed upstream rate limiting.
+ * Falls back to in-memory TokenBucket when Redis is unavailable.
+ */
+export class RedisTokenBucket {
+  private readonly fallback: TokenBucket;
+  private readonly key: string;
+
+  constructor(
+    private readonly redis: Redis,
+    collectionId: string,
+    private readonly capacity: number,
+    private readonly refillRate: number,
+    keyPrefix: string,
+  ) {
+    this.key = `${keyPrefix}rl:upstream:${collectionId}`;
+    this.fallback = new TokenBucket(capacity, refillRate);
+  }
+
+  /**
+   * Try to consume a token from the Redis-backed bucket.
+   * Uses redis.eval() to run the Lua script atomically on the Redis server
+   * (this is ioredis's method for server-side Lua execution, not JS eval).
+   */
+  async tryConsume(): Promise<boolean> {
+    try {
+      // ioredis eval() sends EVALSHA/EVAL to Redis server for Lua execution
+      const result = await (this.redis as any).eval(
+        TOKEN_BUCKET_LUA,
+        1,
+        this.key,
+        this.capacity,
+        this.refillRate,
+        Date.now(),
+      );
+      return result === 1;
+    } catch {
+      const log = logger.adapter();
+      log.warning({ key: this.key }, 'Redis token bucket failed, using in-memory fallback');
+      return this.fallback.tryConsume();
+    }
+  }
+}
+
+const memoryBuckets = new Map<string, TokenBucket>();
 
 /**
  * Get or create a token bucket for a given collection.
@@ -37,11 +117,16 @@ export function getUpstreamBucket(
   collectionId: string,
   capacity = 50,
   refillRate = 50,
-): TokenBucket {
-  let bucket = buckets.get(collectionId);
+  redis?: Redis | null,
+  keyPrefix = 'ogc:',
+): TokenBucket | RedisTokenBucket {
+  if (redis) {
+    return new RedisTokenBucket(redis, collectionId, capacity, refillRate, keyPrefix);
+  }
+  let bucket = memoryBuckets.get(collectionId);
   if (!bucket) {
     bucket = new TokenBucket(capacity, refillRate);
-    buckets.set(collectionId, bucket);
+    memoryBuckets.set(collectionId, bucket);
   }
   return bucket;
 }

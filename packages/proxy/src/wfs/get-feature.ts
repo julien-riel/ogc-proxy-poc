@@ -1,4 +1,5 @@
 import { XMLParser } from 'fast-xml-parser';
+import type Redis from 'ioredis';
 import { getCollection } from '../engine/registry.js';
 import { fetchUpstreamItems } from '../engine/adapter.js';
 import { buildFeatureSafe } from '../engine/geojson-builder.js';
@@ -34,7 +35,7 @@ const R = 20037508.342789244;
  */
 function lonLatTo3857(lon: number, lat: number): [number, number] {
   const x = (lon * R) / 180;
-  const y = Math.log(Math.tan(((90 + lat) * Math.PI) / 360)) * R / Math.PI;
+  const y = (Math.log(Math.tan(((90 + lat) * Math.PI) / 360)) * R) / Math.PI;
   return [x, y];
 }
 
@@ -44,7 +45,7 @@ function reprojectCoords(coords: unknown, srs: string): unknown {
   if (typeof coords[0] === 'number') {
     return lonLatTo3857(coords[0] as number, coords[1] as number);
   }
-  return coords.map(c => reprojectCoords(c, srs));
+  return coords.map((c) => reprojectCoords(c, srs));
 }
 
 function reprojectFeature(feature: Record<string, unknown>, srs: string): Record<string, unknown> {
@@ -133,14 +134,14 @@ export function parseGetFeaturePost(body: string): WfsGetFeatureParams {
   };
 }
 
-export async function executeGetFeature(params: WfsGetFeatureParams) {
+export async function executeGetFeature(params: WfsGetFeatureParams, redis?: Redis | null, keyPrefix?: string) {
   const config = getCollection(params.typeName);
   if (!config) return null;
 
   const srs = normalizeSrs(params.srsName);
 
   if (params.resultType === 'hits') {
-    const upstream = await fetchUpstreamItems(params.typeName, config, { offset: 0, limit: 1 });
+    const upstream = await fetchUpstreamItems(params.typeName, config, { offset: 0, limit: 1 }, redis, keyPrefix);
     return {
       type: 'FeatureCollection',
       totalFeatures: upstream.total ?? 0,
@@ -158,33 +159,32 @@ export async function executeGetFeature(params: WfsGetFeatureParams) {
   // Fetch more items when filtering post-fetch to avoid under-filling
   const DEFAULT_MAX_POST_FETCH_ITEMS = 5000;
   const maxPostFetch = config.maxPostFetchItems ?? DEFAULT_MAX_POST_FETCH_ITEMS;
-  const fetchLimit = params.filterNode
-    ? Math.min(params.maxFeatures * 10, maxPostFetch)
-    : params.maxFeatures;
+  const fetchLimit = params.filterNode ? Math.min(params.maxFeatures * 10, maxPostFetch) : params.maxFeatures;
 
-  const upstream = await fetchUpstreamItems(params.typeName, config, {
-    offset: params.startIndex,
-    limit: fetchLimit,
-  });
+  const upstream = await fetchUpstreamItems(
+    params.typeName,
+    config,
+    {
+      offset: params.startIndex,
+      limit: fetchLimit,
+    },
+    redis,
+    keyPrefix,
+  );
 
   let features = upstream.items
-    .map(item => buildFeatureSafe(item, config))
+    .map((item) => buildFeatureSafe(item, config))
     .filter((f): f is GeoJSON.Feature => f !== null);
 
   // Apply filter post-fetch
   if (params.filterNode) {
-    features = features.filter(f =>
-      evaluateFilter(params.filterNode!, f as unknown as import('geojson').Feature)
-    );
+    features = features.filter((f) => evaluateFilter(params.filterNode!, f as unknown as import('geojson').Feature));
   }
 
   // Apply maxFeatures limit after filtering
-  const limited = params.filterNode
-    ? features.slice(0, params.maxFeatures)
-    : features;
+  const limited = params.filterNode ? features.slice(0, params.maxFeatures) : features;
 
-  const reprojected = limited
-    .map(f => reprojectFeature(f as unknown as Record<string, unknown>, srs));
+  const reprojected = limited.map((f) => reprojectFeature(f as unknown as Record<string, unknown>, srs));
 
   return {
     type: 'FeatureCollection',

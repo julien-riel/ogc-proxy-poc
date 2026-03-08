@@ -1,7 +1,8 @@
+import type Redis from 'ioredis';
 import type { CollectionConfig } from './types.js';
 import { getByPath } from './geojson-builder.js';
 import { buildWfsGetFeatureUrl } from '../plugins/wfs-upstream.js';
-import { getUpstreamBucket } from './upstream-rate-limit.js';
+import { getUpstreamBucket, TokenBucket } from './upstream-rate-limit.js';
 import { logger } from '../logger.js';
 
 export interface FetchParams {
@@ -211,9 +212,18 @@ export async function fetchUpstreamItems(
   collectionId: string,
   config: CollectionConfig,
   params: FetchParams,
+  redis?: Redis | null,
+  keyPrefix?: string,
 ): Promise<UpstreamPage> {
-  const bucket = getUpstreamBucket(collectionId, config.rateLimit?.capacity, config.rateLimit?.refillRate);
-  if (!bucket.tryConsume()) {
+  const bucket = getUpstreamBucket(
+    collectionId,
+    config.rateLimit?.capacity,
+    config.rateLimit?.refillRate,
+    redis,
+    keyPrefix,
+  );
+  const allowed = bucket instanceof TokenBucket ? bucket.tryConsume() : await bucket.tryConsume();
+  if (!allowed) {
     const log = logger.adapter();
     log.warning({ collectionId }, 'upstream rate limit exceeded');
     throw new UpstreamError(429);
@@ -239,9 +249,18 @@ export async function fetchUpstreamItem(
   collectionId: string,
   config: CollectionConfig,
   itemId: string,
+  redis?: Redis | null,
+  keyPrefix?: string,
 ): Promise<Record<string, unknown>> {
-  const bucket = getUpstreamBucket(collectionId, config.rateLimit?.capacity, config.rateLimit?.refillRate);
-  if (!bucket.tryConsume()) {
+  const bucket = getUpstreamBucket(
+    collectionId,
+    config.rateLimit?.capacity,
+    config.rateLimit?.refillRate,
+    redis,
+    keyPrefix,
+  );
+  const allowed = bucket instanceof TokenBucket ? bucket.tryConsume() : await bucket.tryConsume();
+  if (!allowed) {
     const log = logger.adapter();
     log.warning({ collectionId }, 'upstream rate limit exceeded');
     throw new UpstreamError(429);

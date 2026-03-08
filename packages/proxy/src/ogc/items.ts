@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import type Redis from 'ioredis';
 import { getCollection, getCollectionPlugin } from '../engine/registry.js';
 import { getRegistry } from '../engine/registry.js';
 import { fetchUpstreamItems, fetchUpstreamItem, UpstreamError, UpstreamTimeoutError } from '../engine/adapter.js';
@@ -15,7 +16,7 @@ import { logger } from '../logger.js';
 
 export function parseBbox(bboxStr: string): [number, number, number, number] | undefined {
   const parts = bboxStr.split(',').map(Number);
-  if (parts.length === 4 && parts.every(n => !isNaN(n))) {
+  if (parts.length === 4 && parts.every((n) => !isNaN(n))) {
     return parts as [number, number, number, number];
   }
   return undefined;
@@ -35,9 +36,7 @@ export function isInBbox(feature: GeoJSON.Feature, bbox: [number, number, number
     coords.push(...(geom.coordinates as number[][][])[0]);
   }
 
-  return coords.some(([lon, lat]) =>
-    lon >= minLon && lon <= maxLon && lat >= minLat && lat <= maxLat
-  );
+  return coords.some(([lon, lat]) => lon >= minLon && lon <= maxLon && lat >= minLat && lat <= maxLat);
 }
 
 /**
@@ -246,13 +245,13 @@ export function applyPostFilters(
 ): GeoJSON.Feature[] {
   let result = features;
   if (bbox && !isWfs) {
-    result = result.filter(f => isInBbox(f, bbox));
+    result = result.filter((f) => isInBbox(f, bbox));
   }
   if (cqlAst) {
-    result = result.filter(f => evaluateFilter(cqlAst, f));
+    result = result.filter((f) => evaluateFilter(cqlAst, f));
   }
   if (postFetchSimpleAst) {
-    result = result.filter(f => evaluateFilter(postFetchSimpleAst, f));
+    result = result.filter((f) => evaluateFilter(postFetchSimpleAst, f));
   }
   return result;
 }
@@ -284,9 +283,7 @@ export async function getItems(req: Request, res: Response) {
   const DEFAULT_MAX_POST_FETCH_ITEMS = 5000;
   const maxPostFetch = config.maxPostFetchItems ?? registry.defaults?.maxPostFetchItems ?? DEFAULT_MAX_POST_FETCH_ITEMS;
   const needsPostFetch = !!(cqlAst || postFetchSimpleAst);
-  const fetchLimit = needsPostFetch
-    ? Math.min(limit * 10, maxPostFetch)
-    : limit;
+  const fetchLimit = needsPostFetch ? Math.min(limit * 10, maxPostFetch) : limit;
 
   // Load plugin
   const plugin = await getCollectionPlugin(collectionId);
@@ -306,12 +303,20 @@ export async function getItems(req: Request, res: Response) {
     ogcReq = await runHook(plugin, 'transformRequest', ogcReq);
 
     // Fetch upstream
-    const upstream = await fetchUpstreamItems(collectionId, config, {
-      offset: ogcReq.offset,
-      limit: fetchLimit,
-      bbox: ogcReq.bbox,
-      upstreamParams,
-    });
+    const redis = req.app.get('redis') as Redis | null;
+    const keyPrefix = req.app.get('redisKeyPrefix') as string | undefined;
+    const upstream = await fetchUpstreamItems(
+      collectionId,
+      config,
+      {
+        offset: ogcReq.offset,
+        limit: fetchLimit,
+        bbox: ogcReq.bbox,
+        upstreamParams,
+      },
+      redis,
+      keyPrefix,
+    );
 
     // Hook: transformUpstreamResponse
     const rawItems = await runHook(plugin, 'transformUpstreamResponse', upstream.items);
@@ -322,7 +327,7 @@ export async function getItems(req: Request, res: Response) {
       features = rawItems as unknown as GeoJSON.Feature[];
     } else {
       features = (rawItems as Record<string, unknown>[])
-        .map(item => buildFeatureSafe(item, config))
+        .map((item) => buildFeatureSafe(item, config))
         .filter((f): f is GeoJSON.Feature => f !== null);
     }
 
@@ -333,7 +338,7 @@ export async function getItems(req: Request, res: Response) {
 
     // Hook: transformFeature (per-item)
     if (plugin?.transformFeature) {
-      features = await Promise.all(features.map(f => plugin.transformFeature!(f)));
+      features = await Promise.all(features.map((f) => plugin.transformFeature!(f)));
     }
 
     // Apply post-fetch filters
@@ -344,14 +349,17 @@ export async function getItems(req: Request, res: Response) {
     }
 
     // Build response
-    let fc = buildFeatureCollection(
-      features,
-      { baseUrl: getBaseUrl(req), collectionId, offset, limit, total: upstream.total },
-    );
+    let fc = buildFeatureCollection(features, {
+      baseUrl: getBaseUrl(req),
+      collectionId,
+      offset,
+      limit,
+      total: upstream.total,
+    });
 
     // Suppress next link if at maxFeatures
     if (limits.suppressNext) {
-      fc = { ...fc, links: fc.links.filter(l => l.rel !== 'next') };
+      fc = { ...fc, links: fc.links.filter((l) => l.rel !== 'next') };
     }
 
     // Hook: transformResponse
@@ -388,7 +396,9 @@ export async function getItem(req: Request, res: Response) {
 
   try {
     const plugin = await getCollectionPlugin(collectionId);
-    const raw = await fetchUpstreamItem(collectionId, config, featureId);
+    const redis = req.app.get('redis') as Redis | null;
+    const keyPrefix = req.app.get('redisKeyPrefix') as string | undefined;
+    const raw = await fetchUpstreamItem(collectionId, config, featureId, redis, keyPrefix);
     if (!raw) {
       return res.status(404).json({ code: 'NotFound', description: `Feature '${featureId}' not found` });
     }
