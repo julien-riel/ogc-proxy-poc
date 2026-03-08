@@ -69,6 +69,7 @@ jobs:
           node packages/proxy/dist/index.js &
       - name: Wait for services to be ready
         run: |
-          timeout 30 bash -c 'until curl -sf http://localhost:3000/health; do sleep 1; done'
-          timeout 30 bash -c 'until curl -sf http://localhost:3001/bornes-fontaines; do sleep 1; done'
+          timeout 30 bash -c 'until curl -sf http://localhost:3001/bornes-fontaines; do sleep 1; done' &
+          timeout 30 bash -c 'until curl -sf http://localhost:3000/health; do sleep 1; done' &
+          wait
       - run: npm run test:conformance
