@@ -49,4 +49,49 @@ describe('CQL2 Temporal Predicates', () => {
     const node = parseCql2("created T_AFTER '2025-01-01T00:00:00Z' AND name = 'test'");
     expect(evaluateFilter(node, feature)).toBe(true);
   });
+
+  it('returns false when property value is null', () => {
+    const nullFeature: Feature = {
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [0, 0] },
+      properties: { created: null },
+    };
+    const node = parseCql2("created T_AFTER '2025-01-01T00:00:00Z'");
+    expect(evaluateFilter(node, nullFeature)).toBe(false);
+  });
+
+  it('returns false when property value is not a valid date', () => {
+    const badFeature: Feature = {
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [0, 0] },
+      properties: { created: 'not-a-date' },
+    };
+    const node = parseCql2("created T_BEFORE '2025-07-01T00:00:00Z'");
+    expect(evaluateFilter(node, badFeature)).toBe(false);
+  });
+
+  it('throws on invalid target date', () => {
+    const node = parseCql2("created T_BEFORE 'not-a-date'");
+    expect(() => evaluateFilter(node, feature)).toThrow('Invalid temporal filter');
+  });
+
+  it('T_DURING boundary: matches when property equals start date', () => {
+    const boundaryFeature: Feature = {
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [0, 0] },
+      properties: { created: '2025-01-01T00:00:00Z' },
+    };
+    const node = parseCql2("created T_DURING '2025-01-01T00:00:00Z' '2025-12-31T23:59:59Z'");
+    expect(evaluateFilter(node, boundaryFeature)).toBe(true);
+  });
+
+  it('T_DURING boundary: matches when property equals end date', () => {
+    const boundaryFeature: Feature = {
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [0, 0] },
+      properties: { created: '2025-12-31T23:59:59Z' },
+    };
+    const node = parseCql2("created T_DURING '2025-01-01T00:00:00Z' '2025-12-31T23:59:59Z'");
+    expect(evaluateFilter(node, boundaryFeature)).toBe(true);
+  });
 });

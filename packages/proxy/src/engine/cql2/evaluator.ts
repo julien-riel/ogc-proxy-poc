@@ -84,13 +84,22 @@ export function evaluateFilter(node: CqlNode, feature: Feature): boolean {
       const propDate = new Date(String(val)).getTime();
       if (isNaN(propDate)) return false;
       const targetDate = new Date(node.value).getTime();
+      if (isNaN(targetDate)) {
+        throw new Error(`Invalid temporal filter: '${node.value}' is not a valid date`);
+      }
       switch (node.operator) {
         case 'T_BEFORE':
           return propDate < targetDate;
         case 'T_AFTER':
           return propDate > targetDate;
         case 'T_DURING': {
-          const endDate = new Date(node.value2!).getTime();
+          if (!node.value2) {
+            throw new Error('T_DURING requires two timestamps');
+          }
+          const endDate = new Date(node.value2).getTime();
+          if (isNaN(endDate)) {
+            throw new Error(`Invalid temporal filter: '${node.value2}' is not a valid date`);
+          }
           return propDate >= targetDate && propDate <= endDate;
         }
         default:

@@ -15,6 +15,7 @@ const server = app.listen(PORT, () => {
 
 server.setTimeout(REQUEST_TIMEOUT_MS);
 server.on('timeout', (socket) => {
+  log.warning({ timeoutMs: REQUEST_TIMEOUT_MS }, 'request timeout, destroying socket');
   socket.destroy();
 });
 
