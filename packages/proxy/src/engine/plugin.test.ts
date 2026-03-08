@@ -1,8 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { resolve } from 'path';
 import { tmpdir } from 'os';
 import { mkdirSync, writeFileSync, rmSync } from 'fs';
 import { loadPlugin, runHook, type CollectionPlugin } from './plugin.js';
+import { initLogging } from '../logger.js';
+
+beforeAll(() => {
+  initLogging();
+});
 
 describe('Plugin system', () => {
   describe('loadPlugin', () => {
@@ -28,6 +33,35 @@ describe('Plugin system', () => {
       process.env.PLUGINS_DIR = dir;
       try {
         const plugin = await loadPlugin('../../etc/passwd');
+        expect(plugin).toBeNull();
+      } finally {
+        delete process.env.PLUGINS_DIR;
+        rmSync(dir, { recursive: true });
+      }
+    });
+
+    it('returns null when plugin file is missing from PLUGINS_DIR', async () => {
+      const dir = resolve(tmpdir(), `plugins-missing-${Date.now()}`);
+      mkdirSync(dir, { recursive: true });
+
+      process.env.PLUGINS_DIR = dir;
+      try {
+        const plugin = await loadPlugin('nonexistent-plugin');
+        expect(plugin).toBeNull();
+      } finally {
+        delete process.env.PLUGINS_DIR;
+        rmSync(dir, { recursive: true });
+      }
+    });
+
+    it('returns null when plugin file in PLUGINS_DIR has syntax error', async () => {
+      const dir = resolve(tmpdir(), `plugins-malformed-${Date.now()}`);
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(resolve(dir, 'bad-plugin.js'), 'this is not valid javascript {{{');
+
+      process.env.PLUGINS_DIR = dir;
+      try {
+        const plugin = await loadPlugin('bad-plugin');
         expect(plugin).toBeNull();
       } finally {
         delete process.env.PLUGINS_DIR;

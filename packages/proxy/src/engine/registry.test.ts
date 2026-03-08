@@ -92,6 +92,50 @@ describe('Registry', () => {
     }
   });
 
+  it('configPath argument takes precedence over CONFIG_PATH env var', () => {
+    const tmpPath = resolve(tmpdir(), `registry-precedence-${Date.now()}.yaml`);
+    writeFileSync(
+      tmpPath,
+      stringify({
+        collections: {
+          'env-collection': {
+            title: 'From Env',
+            upstream: {
+              baseUrl: 'https://example.com/api',
+              method: 'GET',
+              pagination: { type: 'offset-limit', offsetParam: 'offset', limitParam: 'limit' },
+              responseMapping: { items: 'data', total: null, item: 'data' },
+            },
+            geometry: { type: 'Point', xField: 'x', yField: 'y' },
+            idField: 'id',
+            properties: [],
+          },
+        },
+      }),
+      'utf-8',
+    );
+
+    process.env.CONFIG_PATH = tmpPath;
+    try {
+      const registry = loadRegistry(configPath);
+      expect(registry.collections['bornes-fontaines']).toBeDefined();
+      expect(registry.collections['env-collection']).toBeUndefined();
+    } finally {
+      delete process.env.CONFIG_PATH;
+      unlinkSync(tmpPath);
+    }
+  });
+
+  it('throws descriptive error when CONFIG_PATH points to nonexistent file', () => {
+    process.env.CONFIG_PATH = '/tmp/does-not-exist-ogc-proxy.yaml';
+    try {
+      expect(() => loadRegistry()).toThrow(/Failed to read configuration/);
+      expect(() => loadRegistry()).toThrow(/CONFIG_PATH env var/);
+    } finally {
+      delete process.env.CONFIG_PATH;
+    }
+  });
+
   it('should parse security config from YAML', () => {
     const config = loadRegistry(resolve(__dirname, '../config/collections.yaml'));
     expect(config.security).toBeDefined();

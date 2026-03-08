@@ -1,6 +1,7 @@
 import type { Feature } from 'geojson';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
+import { logger } from '../logger.js';
 import { wfsUpstreamPlugin } from '../plugins/wfs-upstream.js';
 
 export interface OgcRequest {
@@ -59,12 +60,18 @@ export function registerBuiltinPlugin(name: string, plugin: CollectionPlugin): v
 export async function loadPlugin(pluginRef: string | undefined): Promise<CollectionPlugin | null> {
   if (!pluginRef) return null;
 
+  const log = logger.registry();
+
   // File path: load directly
   if (pluginRef.startsWith('./') || pluginRef.startsWith('/')) {
     try {
       const mod = await import(pluginRef);
       return (mod.default ?? mod) as CollectionPlugin;
-    } catch {
+    } catch (err) {
+      log.error(
+        { plugin: pluginRef, error: err instanceof Error ? err.message : err },
+        'failed to load plugin from path',
+      );
       return null;
     }
   }
@@ -78,14 +85,23 @@ export async function loadPlugin(pluginRef: string | undefined): Promise<Collect
   const pluginsDir = process.env.PLUGINS_DIR;
   if (pluginsDir) {
     const pluginPath = resolve(pluginsDir, `${pluginRef}.js`);
-    if (!pluginPath.startsWith(resolve(pluginsDir))) {
+    const resolvedDir = resolve(pluginsDir) + '/';
+    if (!pluginPath.startsWith(resolvedDir)) {
+      log.warning(
+        { plugin: pluginRef, resolvedPath: pluginPath, pluginsDir },
+        'plugin rejected: path escapes plugins directory',
+      );
       return null;
     }
     if (existsSync(pluginPath)) {
       try {
         const mod = await import(pluginPath);
         return (mod.default ?? mod) as CollectionPlugin;
-      } catch {
+      } catch (err) {
+        log.error(
+          { plugin: pluginRef, path: pluginPath, error: err instanceof Error ? err.message : err },
+          'failed to load external plugin',
+        );
         return null;
       }
     }
