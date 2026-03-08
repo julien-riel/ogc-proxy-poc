@@ -1,0 +1,21 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+
+  ogc-proxy:
+    image: ghcr.io/VilledeMontreal/ogc-proxy:1
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./collections.yaml:/app/config/collections.yaml:ro
+      - ./plugins:/app/plugins:ro
+    depends_on:
+      - redis
+
+volumes:
+  redis-data:
