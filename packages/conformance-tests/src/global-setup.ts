@@ -31,7 +31,12 @@ export async function setup() {
   proxy = spawn('npx', ['tsx', 'src/index.ts'], {
     cwd: resolve(__dirname, '../../proxy'),
     stdio: 'pipe',
-    env: { ...cleanEnv, PORT: '3000', UPSTREAM_HOST: 'http://localhost:3001' },
+    env: {
+      ...cleanEnv,
+      PORT: '3000',
+      UPSTREAM_HOST: 'http://localhost:3001',
+      RATE_LIMIT_MAX: '0',
+    },
   });
 
   await waitForServer('http://localhost:3001/health');
