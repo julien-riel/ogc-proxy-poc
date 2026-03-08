@@ -47,6 +47,37 @@ npm install
 | `RATE_LIMIT_MAX` | Max requests per window | `100` |
 | `LOG_LEVEL` | Log level (info/debug) | `info` |
 
+## Authentication (JWT)
+
+Le proxy supporte la validation de tokens JWT via `@villedemontreal/jwt-validator`.
+
+### Configuration
+
+Dans `packages/proxy/src/config/collections.yaml` :
+
+```yaml
+security:
+  jwt:
+    enabled: true
+    host: "${JWT_HOST}"
+    endpoint: "${JWT_ENDPOINT}"
+```
+
+### Variables d'environnement
+
+| Variable | Description |
+|---|---|
+| `JWT_HOST` | URL du serveur JWKS (ex: `https://auth.montreal.ca`) |
+| `JWT_ENDPOINT` | Chemin de l'endpoint JWKS (optionnel) |
+
+### Comportement
+
+- **Desactive (defaut)** : Toutes les requetes passent sans verification.
+- **Active** : Les requetes aux endpoints proteges doivent inclure un header `Authorization: Bearer <token>` valide.
+  - `GetCapabilities` (WFS) et la page d'accueil (OGC API) restent publics.
+  - Toutes les autres operations requierent un JWT valide.
+- Un token invalide ou expire retourne `401 Unauthorized`.
+
 ## Project Structure
 
 ```
