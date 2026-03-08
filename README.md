@@ -46,6 +46,8 @@ npm install
 | `RATE_LIMIT_WINDOW_MS` | Rate limit window | `60000` |
 | `RATE_LIMIT_MAX` | Max requests per window | `100` |
 | `LOG_LEVEL` | Log level (info/debug) | `info` |
+| `REDIS_URL` | Redis connection URL (optional) | (disabled) |
+| `REDIS_KEY_PREFIX` | Prefix for all Redis keys | `ogc:` |
 
 ## Authentication (JWT)
 
@@ -78,17 +80,63 @@ security:
   - Toutes les autres operations requierent un JWT valide.
 - Un token invalide ou expire retourne `401 Unauthorized`.
 
+## Redis (horizontal scaling)
+
+Redis est optionnel. Sans `REDIS_URL`, tout fonctionne en memoire (comportement par defaut). Avec Redis, les fonctionnalites suivantes deviennent distribuees entre instances.
+
+### Rate limiting client
+
+Les compteurs de requetes (`express-rate-limit`) sont partages via `rate-limit-redis`. Sans Redis, chaque instance a ses propres compteurs.
+
+### Rate limiting upstream (token bucket distribue)
+
+Le rate limiting vers les APIs upstream utilise un algorithme token bucket. Avec Redis, l'etat du bucket est partage entre instances via un script Lua atomique.
+
+**Pourquoi Lua ?** Sans atomicite, deux instances concurrentes peuvent lire le meme nombre de tokens et accorder chacune un token alors qu'il n'en restait qu'un. Redis execute les scripts Lua sans interruption, eliminant les race conditions. Le script effectue le meme calcul (refill + consume) que la classe `TokenBucket` en memoire.
+
+### Cache des reponses upstream
+
+Le cache est configurable par collection dans `collections.yaml` :
+
+```yaml
+collections:
+  bornes-fontaines:
+    cache:
+      ttlSeconds: 300
+```
+
+Les reponses upstream (listes et items individuels) sont cachees dans Redis avec le TTL specifie. Les collections sans configuration `cache` ne sont pas cachees.
+
+### Invalidation du cache
+
+Endpoint admin protege par JWT :
+
+```
+DELETE /admin/cache/:collectionId
+```
+
+Retourne `{ "collection": "...", "keysDeleted": N }`.
+
+### Docker Compose
+
+Le `docker-compose.yml` inclut un service `redis:7-alpine`. Pour le dev local :
+
+```
+docker compose up redis
+```
+
 ## Project Structure
 
 ```
 ogc-proxy-poc/
 ├── packages/
 │   ├── proxy/src/
-│   │   ├── engine/     — Core: registry, adapter, geojson-builder, CQL2
-│   │   ├── ogc/        — OGC API Features routes
-│   │   ├── wfs/        — WFS routes
-│   │   ├── plugins/    — Plugin system
-│   │   └── auth/       — JWT middleware
+│   │   ├── admin/     — Admin endpoints (cache invalidation)
+│   │   ├── engine/    — Core: registry, adapter, cache, geojson-builder, CQL2
+│   │   ├── ogc/       — OGC API Features routes
+│   │   ├── wfs/       — WFS routes
+│   │   ├── plugins/   — Plugin system
+│   │   └── auth/      — JWT middleware
 │   ├── mock-api/       — Simulated upstream APIs
 │   └── conformance-tests/ — OGC conformance suite
 ```
