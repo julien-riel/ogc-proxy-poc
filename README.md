@@ -147,7 +147,7 @@ docker compose up redis
 ## Project Structure
 
 ```
-ogc-proxy-poc/
+ogc-proxy-municipal/
 ├── packages/
 │   ├── proxy/src/
 │   │   ├── admin/     — Admin endpoints (cache invalidation)

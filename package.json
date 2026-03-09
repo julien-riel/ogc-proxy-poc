@@ -1,5 +1,5 @@
 {
-  "name": "ogc-proxy-poc",
+  "name": "ogc-proxy-municipal",
   "private": true,
   "workspaces": [
     "packages/*"
