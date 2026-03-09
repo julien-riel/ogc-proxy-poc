@@ -1,0 +1,10 @@
+{
+  "name": "@ogc-proxy/load-tests",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "smoke": "k6 run scripts/smoke.js",
+    "load": "k6 run scripts/load.js",
+    "stress": "k6 run scripts/stress.js"
+  }
+}
