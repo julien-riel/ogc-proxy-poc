@@ -90,6 +90,47 @@ describe('CacheService', () => {
     });
   });
 
+  describe('invalidateByPattern', () => {
+    it('returns 0 when redis is null', async () => {
+      const cache = new CacheService(null, 'test:');
+      const count = await cache.invalidateByPattern('*');
+      expect(count).toBe(0);
+    });
+
+    it('deletes keys matching pattern', async () => {
+      const mockRedis = {
+        scanStream: vi.fn().mockReturnValue({
+          on: vi.fn(function (this: any, event: string, cb: any) {
+            if (event === 'data') cb(['test:cache:bornes-a:k1', 'test:cache:bornes-b:k2']);
+            if (event === 'end') cb();
+            return this;
+          }),
+        }),
+        del: vi.fn().mockResolvedValue(2),
+      };
+      const cache = new CacheService(mockRedis as any, 'test:');
+      const count = await cache.invalidateByPattern('bornes-*');
+      expect(mockRedis.scanStream).toHaveBeenCalledWith({ match: 'test:cache:bornes-*', count: 100 });
+      expect(mockRedis.del).toHaveBeenCalledWith('test:cache:bornes-a:k1', 'test:cache:bornes-b:k2');
+      expect(count).toBe(2);
+    });
+
+    it('returns 0 when no keys match pattern', async () => {
+      const mockRedis = {
+        scanStream: vi.fn().mockReturnValue({
+          on: vi.fn(function (this: any, event: string, cb: any) {
+            if (event === 'data') cb([]);
+            if (event === 'end') cb();
+            return this;
+          }),
+        }),
+      };
+      const cache = new CacheService(mockRedis as any, 'test:');
+      const count = await cache.invalidateByPattern('nonexistent-*');
+      expect(count).toBe(0);
+    });
+  });
+
   describe('without Redis', () => {
     it('get returns null', async () => {
       const cache = new CacheService(null, 'ogc:');

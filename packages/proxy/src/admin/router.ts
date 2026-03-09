@@ -10,6 +10,19 @@ import type { CacheService } from '../engine/cache.js';
 export function createAdminRouter(jwtMiddleware: RequestHandler, cache: CacheService): Router {
   const router = Router();
 
+  router.delete('/cache', jwtMiddleware, async (req, res) => {
+    const pattern = req.query.pattern as string;
+    if (!pattern) {
+      return res.status(400).json({ code: 'InvalidRequest', description: 'pattern query parameter required' });
+    }
+    try {
+      const keysDeleted = await cache.invalidateByPattern(pattern);
+      res.json({ pattern, keysDeleted });
+    } catch {
+      res.status(500).json({ code: 'CacheError', description: 'Failed to invalidate cache by pattern' });
+    }
+  });
+
   router.delete('/cache/:collectionId', jwtMiddleware, async (req, res) => {
     const collectionId = req.params.collectionId as string;
     try {
