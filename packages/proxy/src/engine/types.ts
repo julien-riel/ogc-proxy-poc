@@ -57,6 +57,12 @@ export const circuitBreakerConfigSchema = z.object({
   halfOpenRequests: z.number().positive().default(1),
 });
 
+export const retryConfigSchema = z.object({
+  maxAttempts: z.number().positive().default(3),
+  backoffMs: z.number().positive().default(200),
+  backoffMultiplier: z.number().positive().default(2),
+});
+
 export const collectionConfigSchema = z.object({
   title: z.string(),
   description: z.string().optional(),
@@ -68,6 +74,7 @@ export const collectionConfigSchema = z.object({
   rateLimit: rateLimitConfigSchema.optional(),
   cache: cacheConfigSchema.optional(),
   circuitBreaker: circuitBreakerConfigSchema.optional(),
+  retry: retryConfigSchema.optional(),
   extent: z
     .object({
       spatial: z.tuple([z.number(), z.number(), z.number(), z.number()]),
@@ -131,6 +138,7 @@ export type PaginationConfig = z.infer<typeof paginationConfigSchema>;
 export type RateLimitConfig = z.infer<typeof rateLimitConfigSchema>;
 export type CacheConfig = z.infer<typeof cacheConfigSchema>;
 export type CircuitBreakerConfig = z.infer<typeof circuitBreakerConfigSchema>;
+export type RetryConfig = z.infer<typeof retryConfigSchema>;
 export type CollectionConfig = z.infer<typeof collectionConfigSchema>;
 export type DefaultsConfig = z.infer<typeof defaultsConfigSchema>;
 export type JwtConfig = z.infer<typeof jwtConfigSchema>;
