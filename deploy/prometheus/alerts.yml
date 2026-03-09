@@ -1,0 +1,60 @@
+groups:
+  - name: ogc-proxy
+    rules:
+      - alert: ProxyUpstreamDown
+        expr: ogc_proxy_upstream_health_status == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Upstream {{ $labels.collection }} is down"
+          description: "Upstream for collection {{ $labels.collection }} has been unhealthy for more than 2 minutes."
+
+      - alert: ProxyHighErrorRate
+        expr: >
+          (rate(http_requests_total{status_code=~"5.."}[5m]) /
+          rate(http_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HTTP error rate above 5%"
+          description: "More than 5% of requests are returning 5xx errors over the last 5 minutes."
+
+      - alert: ProxyHighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P95 latency above 2 seconds"
+          description: "95th percentile request latency exceeds 2 seconds."
+
+      - alert: ProxyCircuitBreakerOpen
+        expr: ogc_proxy_circuit_breaker_state == 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Circuit breaker open for {{ $labels.collection }}"
+          description: "Circuit breaker for collection {{ $labels.collection }} has been open for more than 5 minutes."
+
+      - alert: ProxyCacheHitRateLow
+        expr: >
+          (rate(ogc_proxy_cache_operations_total{result="hit"}[15m]) /
+          rate(ogc_proxy_cache_operations_total[15m])) < 0.5
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Cache hit rate below 50%"
+          description: "Cache hit ratio has been below 50% for 15 minutes. Check cache TTL configuration."
+
+      - alert: ProxyRateLimitExceeded
+        expr: rate(ogc_proxy_rate_limit_rejections_total[5m]) * 60 > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Rate limit triggered more than 100 times per minute"
+          description: "Rate limiting is rejecting a high volume of requests."
