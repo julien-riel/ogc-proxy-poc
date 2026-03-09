@@ -14,7 +14,8 @@ services:
 
   proxy:
     build:
-      context: ./packages/proxy
+      context: .
+      dockerfile: packages/proxy/Dockerfile
     ports:
       - "3000:3000"
     depends_on:

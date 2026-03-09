@@ -1,0 +1,10 @@
+node_modules
+.git
+.claude
+dist
+*.md
+packages/conformance-tests
+packages/load-tests
+packages/mock-api/node_modules
+packages/proxy/node_modules
+packages/proxy/dist
