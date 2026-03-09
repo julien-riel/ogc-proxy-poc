@@ -5,6 +5,7 @@ import { getByPath } from './geojson-builder.js';
 import { buildWfsGetFeatureUrl } from '../plugins/wfs-upstream.js';
 import { getUpstreamBucket, TokenBucket } from './upstream-rate-limit.js';
 import { logger } from '../logger.js';
+import { upstreamRequestDuration, upstreamErrorsTotal, rateLimitRejectionsTotal } from '../metrics.js';
 
 export interface FetchParams {
   offset: number;
@@ -240,28 +241,46 @@ export async function fetchUpstreamItems(
   if (!allowed) {
     const log = logger.adapter();
     log.warning({ collectionId }, 'upstream rate limit exceeded');
+    rateLimitRejectionsTotal.inc({ collection: collectionId, limiter: 'upstream' });
     throw new UpstreamError(429);
   }
 
   let result: UpstreamPage;
 
-  if (config.upstream.type === 'wfs') {
-    result = await fetchWfsUpstream(config, params);
-  } else {
-    switch (config.upstream.pagination.type) {
-      case 'offset-limit':
-        result = await fetchOffsetLimit(config, params);
-        break;
-      case 'page-pageSize':
-        result = await fetchPageBased(config, params);
-        break;
-      case 'cursor':
-        result = await fetchCursorBased(config, params);
-        break;
-      default:
-        throw new Error(`Unknown pagination type: ${(config.upstream.pagination as any).type}`);
+  const fetchStart = process.hrtime.bigint();
+  try {
+    if (config.upstream.type === 'wfs') {
+      result = await fetchWfsUpstream(config, params);
+    } else {
+      switch (config.upstream.pagination.type) {
+        case 'offset-limit':
+          result = await fetchOffsetLimit(config, params);
+          break;
+        case 'page-pageSize':
+          result = await fetchPageBased(config, params);
+          break;
+        case 'cursor':
+          result = await fetchCursorBased(config, params);
+          break;
+        default:
+          throw new Error(`Unknown pagination type: ${(config.upstream.pagination as any).type}`);
+      }
     }
+  } catch (err) {
+    const durationS = Number(process.hrtime.bigint() - fetchStart) / 1e9;
+    if (err instanceof UpstreamError) {
+      upstreamRequestDuration.observe({ collection: collectionId, status_code: String(err.statusCode) }, durationS);
+      upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'http_error' });
+    } else if (err instanceof UpstreamTimeoutError) {
+      upstreamRequestDuration.observe({ collection: collectionId, status_code: 'timeout' }, durationS);
+      upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'timeout' });
+    } else {
+      upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'network' });
+    }
+    throw err;
   }
+  const durationS = Number(process.hrtime.bigint() - fetchStart) / 1e9;
+  upstreamRequestDuration.observe({ collection: collectionId, status_code: '200' }, durationS);
 
   // Store in cache after successful fetch
   if (cache && config.cache?.ttlSeconds) {
@@ -302,12 +321,32 @@ export async function fetchUpstreamItem(
   if (!allowed) {
     const log = logger.adapter();
     log.warning({ collectionId }, 'upstream rate limit exceeded');
+    rateLimitRejectionsTotal.inc({ collection: collectionId, limiter: 'upstream' });
     throw new UpstreamError(429);
   }
 
   const url = `${config.upstream.baseUrl}/${itemId}`;
-  const body = await fetchJson(url, config.timeout);
-  const result = getByPath(body, config.upstream.responseMapping.item) as Record<string, unknown>;
+  let result: Record<string, unknown>;
+
+  const fetchStart = process.hrtime.bigint();
+  try {
+    const body = await fetchJson(url, config.timeout);
+    result = getByPath(body, config.upstream.responseMapping.item) as Record<string, unknown>;
+  } catch (err) {
+    const durationS = Number(process.hrtime.bigint() - fetchStart) / 1e9;
+    if (err instanceof UpstreamError) {
+      upstreamRequestDuration.observe({ collection: collectionId, status_code: String(err.statusCode) }, durationS);
+      upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'http_error' });
+    } else if (err instanceof UpstreamTimeoutError) {
+      upstreamRequestDuration.observe({ collection: collectionId, status_code: 'timeout' }, durationS);
+      upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'timeout' });
+    } else {
+      upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'network' });
+    }
+    throw err;
+  }
+  const itemDurationS = Number(process.hrtime.bigint() - fetchStart) / 1e9;
+  upstreamRequestDuration.observe({ collection: collectionId, status_code: '200' }, itemDurationS);
 
   // Store in cache after successful fetch
   if (cache && config.cache?.ttlSeconds) {
