@@ -12,6 +12,7 @@ import type { CqlNode } from '../engine/cql2/types.js';
 import type { PropertyConfig } from '../engine/types.js';
 import { parseSortby, validateSortable, buildUpstreamSort } from '../engine/sorting.js';
 import { getBaseUrl } from '../utils/base-url.js';
+import { generateETag, buildCacheControlHeader } from '../middleware/cache-headers.js';
 import type { CacheService } from '../engine/cache.js';
 import { logger } from '../logger.js';
 import { collectionRequestsTotal, featuresReturned, safeMetric } from '../metrics.js';
@@ -374,9 +375,23 @@ export async function getItems(req: Request, res: Response) {
     if (limits.capped) {
       res.set('OGC-maxPageSize', String(limits.maxPageSize));
     }
+    const body = JSON.stringify(fc);
+    const etag = generateETag(body);
+
+    // Check If-None-Match
+    const ifNoneMatch = req.get('If-None-Match');
+    if (ifNoneMatch === etag) {
+      return res.status(304).end();
+    }
+
+    res.set('ETag', etag);
+    if (config.cache?.ttlSeconds) {
+      res.set('Cache-Control', buildCacheControlHeader(config.cache.ttlSeconds));
+    }
+
     res.set('Content-Type', 'application/geo+json');
     safeMetric(() => featuresReturned.observe({ collection: collectionId }, fc.features.length));
-    res.json(fc);
+    res.send(body);
   } catch (err) {
     if (err instanceof UpstreamError && err.statusCode === 429) {
       return res.status(429).json({ code: 'TooManyRequests', description: 'Upstream rate limit exceeded' });

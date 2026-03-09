@@ -1,4 +1,4 @@
-import { collectDefaultMetrics, Counter, Histogram, register } from 'prom-client';
+import { collectDefaultMetrics, Counter, Gauge, Histogram, register } from 'prom-client';
 import type { Request, Response, NextFunction } from 'express';
 import { logger } from './logger.js';
 
@@ -57,6 +57,31 @@ export const featuresReturned = new Histogram({
   help: 'Number of features returned per request',
   labelNames: ['collection'] as const,
   buckets: [1, 10, 50, 100, 500, 1000, 5000],
+});
+
+export const circuitBreakerState = new Gauge({
+  name: 'ogc_proxy_circuit_breaker_state',
+  help: 'Circuit breaker state (0=closed, 1=open, 2=half-open)',
+  labelNames: ['collection'] as const,
+});
+
+export const circuitBreakerTransitions = new Counter({
+  name: 'ogc_proxy_circuit_breaker_transitions_total',
+  help: 'Total circuit breaker state transitions',
+  labelNames: ['collection', 'to_state'] as const,
+});
+
+export const retryAttemptsTotal = new Counter({
+  name: 'ogc_proxy_retry_attempts_total',
+  help: 'Total retry attempts',
+  labelNames: ['collection'] as const,
+});
+
+export const responseSizeBytes = new Histogram({
+  name: 'ogc_proxy_response_size_bytes',
+  help: 'Response size in bytes',
+  labelNames: ['collection'] as const,
+  buckets: [100, 1000, 10000, 100000, 1000000, 10000000],
 });
 
 // --- Safe metric helpers ---

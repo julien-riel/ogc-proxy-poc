@@ -53,6 +53,34 @@ export class CacheService {
     }
   }
 
+  async invalidateByPattern(pattern: string): Promise<number> {
+    if (!this.redis) return 0;
+    const fullPattern = `${this.keyPrefix}cache:${pattern}`;
+    const keys: string[] = [];
+
+    return new Promise((resolve, reject) => {
+      const stream = this.redis!.scanStream({ match: fullPattern, count: 100 });
+      stream.on('data', (batch: string[]) => {
+        keys.push(...batch);
+      });
+      stream.on('end', async () => {
+        if (keys.length === 0) {
+          resolve(0);
+          return;
+        }
+        try {
+          const count = await this.redis!.del(...keys);
+          const log = logger.adapter();
+          log.info({ pattern, keysDeleted: count }, 'cache invalidated by pattern');
+          resolve(count);
+        } catch (err) {
+          reject(err);
+        }
+      });
+      stream.on('error', reject);
+    });
+  }
+
   async invalidate(collectionId: string): Promise<number> {
     if (!this.redis) return 0;
     const pattern = `${this.keyPrefix}cache:${collectionId}:*`;

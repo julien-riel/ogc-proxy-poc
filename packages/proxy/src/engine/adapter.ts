@@ -5,7 +5,16 @@ import { getByPath } from './geojson-builder.js';
 import { buildWfsGetFeatureUrl } from '../plugins/wfs-upstream.js';
 import { getUpstreamBucket, TokenBucket } from './upstream-rate-limit.js';
 import { logger } from '../logger.js';
-import { upstreamRequestDuration, upstreamErrorsTotal, rateLimitRejectionsTotal, safeMetric } from '../metrics.js';
+import {
+  upstreamRequestDuration,
+  upstreamErrorsTotal,
+  rateLimitRejectionsTotal,
+  circuitBreakerState,
+  retryAttemptsTotal,
+  safeMetric,
+} from '../metrics.js';
+import { getCircuitBreaker, CircuitState } from './circuit-breaker.js';
+import { withRetry } from './retry.js';
 
 export interface FetchParams {
   offset: number;
@@ -245,28 +254,46 @@ export async function fetchUpstreamItems(
     throw new UpstreamError(429);
   }
 
+  // Check circuit breaker
+  const breaker = getCircuitBreaker(collectionId, config.circuitBreaker);
+  if (breaker && !breaker.canExecute()) {
+    const log = logger.adapter();
+    log.warning({ collectionId }, 'circuit breaker is open, rejecting request');
+    safeMetric(() => {
+      const stateValue = breaker.state === CircuitState.Open ? 1 : breaker.state === CircuitState.HalfOpen ? 2 : 0;
+      circuitBreakerState.set({ collection: collectionId }, stateValue);
+    });
+    throw new UpstreamError(503);
+  }
+
   let result: UpstreamPage;
+
+  const doFetch = async (): Promise<UpstreamPage> => {
+    if (config.upstream.type === 'wfs') {
+      return fetchWfsUpstream(config, params);
+    }
+    switch (config.upstream.pagination.type) {
+      case 'offset-limit':
+        return fetchOffsetLimit(config, params);
+      case 'page-pageSize':
+        return fetchPageBased(config, params);
+      case 'cursor':
+        return fetchCursorBased(config, params);
+      default:
+        throw new Error(`Unknown pagination type: ${(config.upstream.pagination as any).type}`);
+    }
+  };
 
   const fetchStart = process.hrtime.bigint();
   try {
-    if (config.upstream.type === 'wfs') {
-      result = await fetchWfsUpstream(config, params);
+    if (config.retry) {
+      safeMetric(() => retryAttemptsTotal.inc({ collection: collectionId }));
+      result = await withRetry(doFetch, config.retry);
     } else {
-      switch (config.upstream.pagination.type) {
-        case 'offset-limit':
-          result = await fetchOffsetLimit(config, params);
-          break;
-        case 'page-pageSize':
-          result = await fetchPageBased(config, params);
-          break;
-        case 'cursor':
-          result = await fetchCursorBased(config, params);
-          break;
-        default:
-          throw new Error(`Unknown pagination type: ${(config.upstream.pagination as any).type}`);
-      }
+      result = await doFetch();
     }
   } catch (err) {
+    if (breaker) breaker.recordFailure();
     const durationS = Number(process.hrtime.bigint() - fetchStart) / 1e9;
     safeMetric(() => {
       if (err instanceof UpstreamError) {
@@ -281,6 +308,8 @@ export async function fetchUpstreamItems(
     });
     throw err;
   }
+
+  if (breaker) breaker.recordSuccess();
   const durationS = Number(process.hrtime.bigint() - fetchStart) / 1e9;
   safeMetric(() => upstreamRequestDuration.observe({ collection: collectionId, status_code: '200' }, durationS));
 
@@ -327,14 +356,36 @@ export async function fetchUpstreamItem(
     throw new UpstreamError(429);
   }
 
+  // Check circuit breaker
+  const breaker = getCircuitBreaker(collectionId, config.circuitBreaker);
+  if (breaker && !breaker.canExecute()) {
+    const log = logger.adapter();
+    log.warning({ collectionId }, 'circuit breaker is open, rejecting request');
+    safeMetric(() => {
+      const stateValue = breaker.state === CircuitState.Open ? 1 : breaker.state === CircuitState.HalfOpen ? 2 : 0;
+      circuitBreakerState.set({ collection: collectionId }, stateValue);
+    });
+    throw new UpstreamError(503);
+  }
+
   const url = `${config.upstream.baseUrl}/${itemId}`;
   let result: Record<string, unknown>;
 
+  const doFetch = async (): Promise<Record<string, unknown>> => {
+    const body = await fetchJson(url, config.timeout);
+    return getByPath(body, config.upstream.responseMapping.item) as Record<string, unknown>;
+  };
+
   const fetchStart = process.hrtime.bigint();
   try {
-    const body = await fetchJson(url, config.timeout);
-    result = getByPath(body, config.upstream.responseMapping.item) as Record<string, unknown>;
+    if (config.retry) {
+      safeMetric(() => retryAttemptsTotal.inc({ collection: collectionId }));
+      result = await withRetry(doFetch, config.retry);
+    } else {
+      result = await doFetch();
+    }
   } catch (err) {
+    if (breaker) breaker.recordFailure();
     const durationS = Number(process.hrtime.bigint() - fetchStart) / 1e9;
     safeMetric(() => {
       if (err instanceof UpstreamError) {
@@ -349,6 +400,8 @@ export async function fetchUpstreamItem(
     });
     throw err;
   }
+
+  if (breaker) breaker.recordSuccess();
   const itemDurationS = Number(process.hrtime.bigint() - fetchStart) / 1e9;
   safeMetric(() => upstreamRequestDuration.observe({ collection: collectionId, status_code: '200' }, itemDurationS));
 
