@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ogc-proxy
+  namespace: ogc-proxy
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ogc-proxy
+  template:
+    metadata:
+      labels:
+        app: ogc-proxy
+    spec:
+      containers:
+        - name: ogc-proxy
+          image: ghcr.io/VilledeMontreal/ogc-proxy:1
+          ports:
+            - containerPort: 3000
+          env:
+            - name: UPSTREAM_HOST
+              value: "https://api.your-city.com"
+            - name: REDIS_URL
+              value: "redis://redis-svc.ogc-proxy.svc.cluster.local:6379"
+            - name: PORT
+              value: "3000"
+          volumeMounts:
+            - name: config
+              mountPath: /app/config/collections.yaml
+              subPath: collections.yaml
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /ogc
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ogc
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+      volumes:
+        - name: config
+          configMap:
+            name: ogc-proxy-config

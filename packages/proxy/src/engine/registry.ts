@@ -24,8 +24,22 @@ function substituteEnvVars(value: unknown): unknown {
 let registry: RegistryConfig | null = null;
 
 export function loadRegistry(configPath?: string): RegistryConfig {
-  const path = configPath || resolve(__dirname, '../config/collections.yaml');
-  const raw = readFileSync(path, 'utf-8');
+  const path = configPath || process.env.CONFIG_PATH || resolve(__dirname, '../config/collections.yaml');
+  let raw: string;
+  try {
+    raw = readFileSync(path, 'utf-8');
+  } catch (err) {
+    const source = configPath
+      ? 'configPath argument'
+      : process.env.CONFIG_PATH
+        ? 'CONFIG_PATH env var'
+        : 'default path';
+    throw new Error(
+      `Failed to read configuration from "${path}" (${source}). ` +
+        `If running in Docker, verify the volume mount is correct.`,
+      { cause: err },
+    );
+  }
   const parsed = parse(raw);
   const substituted = substituteEnvVars(parsed);
   registry = registryConfigSchema.parse(substituted);

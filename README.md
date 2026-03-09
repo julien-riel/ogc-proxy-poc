@@ -48,6 +48,25 @@ npm install
 | `LOG_LEVEL` | Log level (info/debug) | `info` |
 | `REDIS_URL` | Redis connection URL (optional) | (disabled) |
 | `REDIS_KEY_PREFIX` | Prefix for all Redis keys | `ogc:` |
+| `CONFIG_PATH` | Path to collections.yaml | (internal default) |
+| `PLUGINS_DIR` | Directory for custom plugins | (disabled) |
+
+## Deploy with Docker (multi-org)
+
+The proxy is published as a generic Docker image on `ghcr.io`. Any organization can deploy it by providing its own configuration — no code changes required.
+
+**Quick start:**
+
+1. Copy the `examples/` directory
+2. Edit `collections.yaml` to map your upstream APIs
+3. Configure `.env` with your settings
+4. `docker compose up -d`
+
+See [`examples/README.md`](examples/README.md) for the full guide.
+
+For Kubernetes deployments, see [`docs/kubernetes/README.md`](docs/kubernetes/README.md).
+
+**Updating:** `docker compose pull && docker compose up -d`
 
 ## Authentication (JWT)
 

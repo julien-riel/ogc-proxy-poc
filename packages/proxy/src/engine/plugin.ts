@@ -1,4 +1,7 @@
 import type { Feature } from 'geojson';
+import { existsSync } from 'fs';
+import { resolve } from 'path';
+import { logger } from '../logger.js';
 import { wfsUpstreamPlugin } from '../plugins/wfs-upstream.js';
 
 export interface OgcRequest {
@@ -57,16 +60,54 @@ export function registerBuiltinPlugin(name: string, plugin: CollectionPlugin): v
 export async function loadPlugin(pluginRef: string | undefined): Promise<CollectionPlugin | null> {
   if (!pluginRef) return null;
 
-  if (!pluginRef.startsWith('./') && !pluginRef.startsWith('/')) {
-    return builtinPlugins[pluginRef] ?? null;
+  const log = logger.registry();
+
+  // File path: load directly
+  if (pluginRef.startsWith('./') || pluginRef.startsWith('/')) {
+    try {
+      const mod = await import(pluginRef);
+      return (mod.default ?? mod) as CollectionPlugin;
+    } catch (err) {
+      log.error(
+        { plugin: pluginRef, error: err instanceof Error ? err.message : err },
+        'failed to load plugin from path',
+      );
+      return null;
+    }
   }
 
-  try {
-    const mod = await import(pluginRef);
-    return (mod.default ?? mod) as CollectionPlugin;
-  } catch {
-    return null;
+  // Built-in plugin
+  if (builtinPlugins[pluginRef]) {
+    return builtinPlugins[pluginRef];
   }
+
+  // External plugins directory
+  const pluginsDir = process.env.PLUGINS_DIR;
+  if (pluginsDir) {
+    const pluginPath = resolve(pluginsDir, `${pluginRef}.js`);
+    const resolvedDir = resolve(pluginsDir) + '/';
+    if (!pluginPath.startsWith(resolvedDir)) {
+      log.warning(
+        { plugin: pluginRef, resolvedPath: pluginPath, pluginsDir },
+        'plugin rejected: path escapes plugins directory',
+      );
+      return null;
+    }
+    if (existsSync(pluginPath)) {
+      try {
+        const mod = await import(pluginPath);
+        return (mod.default ?? mod) as CollectionPlugin;
+      } catch (err) {
+        log.error(
+          { plugin: pluginRef, path: pluginPath, error: err instanceof Error ? err.message : err },
+          'failed to load external plugin',
+        );
+        return null;
+      }
+    }
+  }
+
+  return null;
 }
 
 type HookName = keyof Omit<CollectionPlugin, 'skipGeojsonBuilder'>;
