@@ -1,7 +1,49 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('./upstream-rate-limit.js', () => ({
+  getUpstreamBucket: vi.fn().mockReturnValue({
+    tryConsume: () => true,
+  }),
+  TokenBucket: class TokenBucket {
+    tryConsume() {
+      return true;
+    }
+  },
+}));
+
+vi.mock('./circuit-breaker.js', () => ({
+  getCircuitBreaker: vi.fn().mockReturnValue(null),
+  CircuitState: { Closed: 0, Open: 1, HalfOpen: 2 },
+}));
+
+vi.mock('./retry.js', () => ({
+  withRetry: vi.fn(async (fn: () => Promise<any>) => fn()),
+}));
+
+vi.mock('../metrics.js', () => ({
+  upstreamRequestDuration: { observe: vi.fn() },
+  upstreamErrorsTotal: { inc: vi.fn() },
+  rateLimitRejectionsTotal: { inc: vi.fn() },
+  circuitBreakerState: { set: vi.fn() },
+  retryAttemptsTotal: { inc: vi.fn() },
+  safeMetric: (fn: () => void) => {
+    try {
+      fn();
+    } catch {
+      /* ignore */
+    }
+  },
+}));
+
+vi.mock('../logger.js', () => ({
+  logger: {
+    adapter: () => ({ info: vi.fn(), warning: vi.fn(), error: vi.fn() }),
+  },
+  initLogging: vi.fn(),
+}));
+
 import { fetchUpstreamItems, fetchUpstreamItem } from './adapter.js';
 import type { CollectionConfig } from './types.js';
-import { initLogging } from '../logger.js';
 
 const offsetLimitConfig: CollectionConfig = {
   title: 'Test Offset/Limit',
@@ -41,8 +83,6 @@ const cursorConfig: CollectionConfig = {
   idField: 'code',
   properties: [{ name: 'nom', type: 'string' }],
 };
-
-initLogging();
 
 describe('Adapter', () => {
   beforeEach(() => {
@@ -213,6 +253,117 @@ describe('Adapter', () => {
       await expect(fetchUpstreamItems('test-offset', configWithTimeout, { offset: 0, limit: 10 })).rejects.toThrow(
         'Upstream timeout',
       );
+    });
+  });
+
+  describe('cache integration', () => {
+    it('returns cached result when available', async () => {
+      const cachedData = { items: [{ id: 'cached' }], total: 1 };
+      const mockCache = { get: vi.fn().mockResolvedValue(cachedData), set: vi.fn() };
+      const configWithCache = { ...offsetLimitConfig, cache: { ttlSeconds: 300 } };
+      vi.stubGlobal('fetch', vi.fn());
+      const result = await fetchUpstreamItems(
+        'test-cache',
+        configWithCache,
+        { offset: 0, limit: 10 },
+        null,
+        undefined,
+        mockCache as any,
+      );
+      expect(result).toEqual(cachedData);
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('stores result in cache after fetch', async () => {
+      const mockCache = { get: vi.fn().mockResolvedValue(null), set: vi.fn() };
+      const configWithCache = { ...offsetLimitConfig, cache: { ttlSeconds: 300 } };
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ id: 1 }], total: 1 }),
+        }),
+      );
+      await fetchUpstreamItems(
+        'test-cache',
+        configWithCache,
+        { offset: 0, limit: 10 },
+        null,
+        undefined,
+        mockCache as any,
+      );
+      expect(mockCache.set).toHaveBeenCalledWith(
+        'test-cache',
+        expect.objectContaining({ offset: 0, limit: 10 }),
+        expect.objectContaining({ items: [{ id: 1 }] }),
+        300,
+      );
+    });
+  });
+
+  describe('rate limiting', () => {
+    it('throws 429 when rate limit exceeded', async () => {
+      const { getUpstreamBucket } = await import('./upstream-rate-limit.js');
+      vi.mocked(getUpstreamBucket).mockReturnValue({ tryConsume: () => false } as any);
+      const configWithRate = { ...offsetLimitConfig, rateLimit: { capacity: 10, refillRate: 1 } };
+      await expect(fetchUpstreamItems('test-rate', configWithRate, { offset: 0, limit: 10 })).rejects.toThrow(
+        'Upstream error: 429',
+      );
+      vi.mocked(getUpstreamBucket).mockReturnValue({ tryConsume: () => true } as any);
+    });
+  });
+
+  describe('circuit breaker', () => {
+    it('throws 503 when circuit breaker is open', async () => {
+      const { getCircuitBreaker } = await import('./circuit-breaker.js');
+      vi.mocked(getCircuitBreaker).mockReturnValue({
+        canExecute: () => false,
+        state: 1,
+        recordFailure: vi.fn(),
+        recordSuccess: vi.fn(),
+      } as any);
+      const configWithBreaker = {
+        ...offsetLimitConfig,
+        circuitBreaker: { failureThreshold: 3, resetTimeoutMs: 5000, halfOpenRequests: 1 },
+      };
+      await expect(fetchUpstreamItems('test-cb', configWithBreaker, { offset: 0, limit: 10 })).rejects.toThrow(
+        'Upstream error: 503',
+      );
+      vi.mocked(getCircuitBreaker).mockReturnValue(null);
+    });
+  });
+
+  describe('bbox and extra params', () => {
+    it('passes bbox to upstream URL', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ data: [], total: 0 }),
+        }),
+      );
+      await fetchUpstreamItems('test-bbox', offsetLimitConfig, {
+        offset: 0,
+        limit: 10,
+        bbox: [-74, 45, -73, 46],
+      });
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('bbox='), expect.any(Object));
+    });
+
+    it('passes upstream params to URL', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ data: [], total: 0 }),
+        }),
+      );
+      await fetchUpstreamItems('test-params', offsetLimitConfig, {
+        offset: 0,
+        limit: 10,
+        upstreamParams: { status: 'active' },
+      });
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('status=active'), expect.any(Object));
     });
   });
 });

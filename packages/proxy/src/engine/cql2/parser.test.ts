@@ -98,6 +98,95 @@ describe('CQL2 Parser', () => {
     }
   });
 
+  describe('IN operator', () => {
+    it('parses single value', () => {
+      const ast = parseCql2("etat IN ('actif')");
+      expect(ast).toEqual({ type: 'in', property: 'etat', values: ['actif'] });
+    });
+
+    it('parses multiple string values', () => {
+      const ast = parseCql2("etat IN ('actif','maintenance','inactif')");
+      expect(ast).toEqual({ type: 'in', property: 'etat', values: ['actif', 'maintenance', 'inactif'] });
+    });
+
+    it('parses numeric values', () => {
+      const ast = parseCql2('code IN (1,2,3)');
+      expect(ast).toEqual({ type: 'in', property: 'code', values: [1, 2, 3] });
+    });
+  });
+
+  describe('BETWEEN operator', () => {
+    it('parses numeric range', () => {
+      const ast = parseCql2('population BETWEEN 10000 AND 50000');
+      expect(ast).toEqual({ type: 'between', property: 'population', low: 10000, high: 50000 });
+    });
+  });
+
+  describe('IS NULL / IS NOT NULL', () => {
+    it('parses IS NULL', () => {
+      const ast = parseCql2('etat IS NULL');
+      expect(ast).toEqual({ type: 'isNull', property: 'etat', negated: false });
+    });
+
+    it('parses IS NOT NULL', () => {
+      const ast = parseCql2('etat IS NOT NULL');
+      expect(ast).toEqual({ type: 'isNull', property: 'etat', negated: true });
+    });
+  });
+
+  describe('Temporal predicates', () => {
+    it('parses T_BEFORE', () => {
+      const ast = parseCql2("date_inspection T_BEFORE '2024-01-01'");
+      expect(ast).toEqual({ type: 'temporal', operator: 'T_BEFORE', property: 'date_inspection', value: '2024-01-01' });
+    });
+
+    it('parses T_AFTER', () => {
+      const ast = parseCql2("date_inspection T_AFTER '2024-01-01'");
+      expect(ast).toEqual({ type: 'temporal', operator: 'T_AFTER', property: 'date_inspection', value: '2024-01-01' });
+    });
+
+    it('parses T_DURING with two timestamps', () => {
+      const ast = parseCql2("date_inspection T_DURING '2024-01-01' '2024-12-31'");
+      expect(ast).toEqual({
+        type: 'temporal',
+        operator: 'T_DURING',
+        property: 'date_inspection',
+        value: '2024-01-01',
+        value2: '2024-12-31',
+      });
+    });
+  });
+
+  describe('LINESTRING geometry', () => {
+    it('parses S_INTERSECTS with LINESTRING', () => {
+      const ast = parseCql2('S_INTERSECTS(geometry,LINESTRING(-74 45,-73 46,-72 45))');
+      expect(ast).toEqual(
+        expect.objectContaining({
+          type: 'spatial',
+          operator: 'S_INTERSECTS',
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [-74, 45],
+              [-73, 46],
+              [-72, 45],
+            ],
+          },
+        }),
+      );
+    });
+  });
+
+  describe('Error handling', () => {
+    it('throws on unsupported geometry type', () => {
+      expect(() => parseCql2('S_INTERSECTS(geometry,MULTIPOINT(0 0))')).toThrow();
+    });
+
+    it('throws on unexpected token', () => {
+      expect(() => parseCql2("42='value'")).toThrow();
+    });
+  });
+
   describe('depth limit', () => {
     it('rejects deeply nested expressions', () => {
       let expr = 'a = 1';
