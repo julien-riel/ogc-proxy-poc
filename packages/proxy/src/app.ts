@@ -13,6 +13,7 @@ import { createRedisClient, getRedisStatus, getKeyPrefix } from './redis.js';
 import { CacheService } from './engine/cache.js';
 import { HealthChecker } from './engine/health-check.js';
 import { httpMiddleware, metricsHandler, rateLimitRejectionsTotal, safeMetric } from './metrics.js';
+import { httpsRedirect } from './middleware/https-redirect.js';
 
 export async function createApp() {
   initLogging();
@@ -45,6 +46,9 @@ export async function createApp() {
   app.set('cache', cache);
   app.set('healthChecker', healthChecker);
   app.use(helmet());
+  if (process.env.ENFORCE_HTTPS === 'true') {
+    app.use(httpsRedirect());
+  }
   app.use(httpMiddleware);
   const corsOrigin = process.env.CORS_ORIGIN;
   app.use(cors(corsOrigin ? { origin: corsOrigin.split(',') } : undefined));
