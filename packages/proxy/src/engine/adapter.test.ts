@@ -266,9 +266,7 @@ describe('Adapter', () => {
         'test-cache',
         configWithCache,
         { offset: 0, limit: 10 },
-        null,
-        undefined,
-        mockCache as any,
+        { cache: mockCache as any },
       );
       expect(result).toEqual(cachedData);
       expect(fetch).not.toHaveBeenCalled();
@@ -284,14 +282,7 @@ describe('Adapter', () => {
           json: () => Promise.resolve({ data: [{ id: 1 }], total: 1 }),
         }),
       );
-      await fetchUpstreamItems(
-        'test-cache',
-        configWithCache,
-        { offset: 0, limit: 10 },
-        null,
-        undefined,
-        mockCache as any,
-      );
+      await fetchUpstreamItems('test-cache', configWithCache, { offset: 0, limit: 10 }, { cache: mockCache as any });
       expect(mockCache.set).toHaveBeenCalledWith(
         'test-cache',
         expect.objectContaining({ offset: 0, limit: 10 }),

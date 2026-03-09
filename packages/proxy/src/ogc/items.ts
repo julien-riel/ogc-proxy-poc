@@ -308,9 +308,11 @@ export async function getItems(req: Request, res: Response) {
     ogcReq = await runHook(plugin, 'transformRequest', ogcReq);
 
     // Fetch upstream
-    const redis = req.app.get('redis') as Redis | null;
-    const keyPrefix = req.app.get('redisKeyPrefix') as string | undefined;
-    const cache = req.app.get('cache') as CacheService | null;
+    const deps = {
+      redis: req.app.get('redis') as Redis | null,
+      keyPrefix: req.app.get('redisKeyPrefix') as string | undefined,
+      cache: req.app.get('cache') as CacheService | null,
+    };
     const upstream = await fetchUpstreamItems(
       collectionId,
       config,
@@ -320,9 +322,7 @@ export async function getItems(req: Request, res: Response) {
         bbox: ogcReq.bbox,
         upstreamParams,
       },
-      redis,
-      keyPrefix,
-      cache,
+      deps,
     );
 
     // Hook: transformUpstreamResponse
@@ -420,10 +420,12 @@ export async function getItem(req: Request, res: Response) {
 
   try {
     const plugin = await getCollectionPlugin(collectionId);
-    const redis = req.app.get('redis') as Redis | null;
-    const keyPrefix = req.app.get('redisKeyPrefix') as string | undefined;
-    const cache = req.app.get('cache') as CacheService | null;
-    const raw = await fetchUpstreamItem(collectionId, config, featureId, redis, keyPrefix, cache);
+    const deps = {
+      redis: req.app.get('redis') as Redis | null,
+      keyPrefix: req.app.get('redisKeyPrefix') as string | undefined,
+      cache: req.app.get('cache') as CacheService | null,
+    };
+    const raw = await fetchUpstreamItem(collectionId, config, featureId, deps);
     if (!raw) {
       return res.status(404).json({ code: 'NotFound', description: `Feature '${featureId}' not found` });
     }

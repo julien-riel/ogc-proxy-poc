@@ -1,8 +1,7 @@
 import { XMLParser } from 'fast-xml-parser';
-import type { Redis } from 'ioredis';
 import { getCollection } from '../engine/registry.js';
 import { fetchUpstreamItems } from '../engine/adapter.js';
-import type { CacheService } from '../engine/cache.js';
+import type { AdapterDeps } from '../engine/adapter.js';
 import { buildFeatureSafe } from '../engine/geojson-builder.js';
 import { parseFilterXml } from './filter-encoding.js';
 import { evaluateFilter } from '../engine/cql2/evaluator.js';
@@ -135,26 +134,14 @@ export function parseGetFeaturePost(body: string): WfsGetFeatureParams {
   };
 }
 
-export async function executeGetFeature(
-  params: WfsGetFeatureParams,
-  redis?: Redis | null,
-  keyPrefix?: string,
-  cache?: CacheService | null,
-) {
+export async function executeGetFeature(params: WfsGetFeatureParams, deps: AdapterDeps = {}) {
   const config = getCollection(params.typeName);
   if (!config) return null;
 
   const srs = normalizeSrs(params.srsName);
 
   if (params.resultType === 'hits') {
-    const upstream = await fetchUpstreamItems(
-      params.typeName,
-      config,
-      { offset: 0, limit: 1 },
-      redis,
-      keyPrefix,
-      cache,
-    );
+    const upstream = await fetchUpstreamItems(params.typeName, config, { offset: 0, limit: 1 }, deps);
     return {
       type: 'FeatureCollection',
       totalFeatures: upstream.total ?? 0,
@@ -181,9 +168,7 @@ export async function executeGetFeature(
       offset: params.startIndex,
       limit: fetchLimit,
     },
-    redis,
-    keyPrefix,
-    cache,
+    deps,
   );
 
   let features = upstream.items

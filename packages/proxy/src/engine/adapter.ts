@@ -2,7 +2,9 @@ import type { Redis } from 'ioredis';
 import type { CollectionConfig } from './types.js';
 import type { CacheService } from './cache.js';
 import { getByPath } from './geojson-builder.js';
-import { buildWfsGetFeatureUrl } from '../plugins/wfs-upstream.js';
+import { fetchJson, UpstreamError, UpstreamTimeoutError } from './fetch-service.js';
+import { fetchWithStrategy } from './pagination/index.js';
+import type { FetchParams, UpstreamPage } from './pagination/types.js';
 import { getUpstreamBucket, TokenBucket } from './upstream-rate-limit.js';
 import { logger } from '../logger.js';
 import {
@@ -16,235 +18,35 @@ import {
 import { getCircuitBreaker, CircuitState } from './circuit-breaker.js';
 import { withRetry } from './retry.js';
 
-export interface FetchParams {
-  offset: number;
-  limit: number;
-  bbox?: [number, number, number, number];
-  upstreamParams?: Record<string, string>;
+export type { FetchParams, UpstreamPage } from './pagination/types.js';
+export { UpstreamError, UpstreamTimeoutError } from './fetch-service.js';
+
+export interface AdapterDeps {
+  cache?: CacheService | null;
+  redis?: Redis | null;
+  keyPrefix?: string;
 }
 
-export interface UpstreamPage {
-  items: Record<string, unknown>[];
-  total?: number;
-}
-
-export class UpstreamError extends Error {
-  constructor(public readonly statusCode: number) {
-    super(`Upstream error: ${statusCode}`);
-  }
-}
-
-export class UpstreamTimeoutError extends Error {
-  public readonly timeoutMs: number;
-  constructor(url: string, timeoutMs: number) {
-    super(`Upstream timeout after ${timeoutMs}ms`);
-    this.timeoutMs = timeoutMs;
-  }
-}
-
-const DEFAULT_TIMEOUT_MS = 15_000;
-
-function redactUrl(url: string): string {
-  try {
-    const u = new URL(url);
-    return `${u.origin}${u.pathname}`;
-  } catch {
-    return url;
-  }
-}
-
-async function fetchJson(url: string, timeoutMs?: number): Promise<Record<string, unknown>> {
-  const log = logger.adapter();
-  const start = Date.now();
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs ?? DEFAULT_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, { signal: controller.signal });
-    const durationMs = Date.now() - start;
-    log.info(
-      { url: redactUrl(url), status: response.status, durationMs },
-      `upstream ${response.status} in ${durationMs}ms`,
-    );
-    if (!response.ok) {
-      throw new UpstreamError(response.status);
-    }
-    return response.json() as Promise<Record<string, unknown>>;
-  } catch (err) {
-    if (err instanceof UpstreamError) throw err;
-    const durationMs = Date.now() - start;
-    if (err instanceof DOMException && err.name === 'AbortError') {
-      log.error({ url, durationMs, timeoutMs: timeoutMs ?? DEFAULT_TIMEOUT_MS }, 'upstream timeout');
-      throw new UpstreamTimeoutError(url, timeoutMs ?? DEFAULT_TIMEOUT_MS);
-    }
-    log.error({ url, durationMs, err }, 'upstream fetch failed');
-    throw err;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-function extractItems(body: Record<string, unknown>, config: CollectionConfig): Record<string, unknown>[] {
-  const raw = getByPath(body, config.upstream.responseMapping.items);
-  if (!Array.isArray(raw)) {
-    const log = logger.adapter();
-    log.warning({ path: config.upstream.responseMapping.items }, 'upstream items field is not an array');
-    return [];
-  }
-  return raw as Record<string, unknown>[];
-}
-
-function extractTotal(body: Record<string, unknown>, config: CollectionConfig): number | undefined {
-  const { total } = config.upstream.responseMapping;
-  if (!total) return undefined;
-  const value = getByPath(body, total);
-  if (typeof value !== 'number' || isNaN(value)) {
-    if (value !== undefined && value !== null) {
-      const log = logger.adapter();
-      log.warning({ path: total, value }, 'upstream total is not a valid number');
-    }
-    return undefined;
-  }
-  return value;
-}
-
-function applyExtraParams(url: URL, params: FetchParams): void {
-  if (params.bbox) {
-    url.searchParams.set('bbox', params.bbox.join(','));
-  }
-  if (params.upstreamParams) {
-    for (const [key, value] of Object.entries(params.upstreamParams)) {
-      url.searchParams.set(key, value);
-    }
-  }
-}
-
-async function fetchOffsetLimit(config: CollectionConfig, params: FetchParams): Promise<UpstreamPage> {
-  const pagination = config.upstream.pagination as { offsetParam: string; limitParam: string };
-  const url = new URL(config.upstream.baseUrl);
-  url.searchParams.set(pagination.offsetParam, String(params.offset));
-  url.searchParams.set(pagination.limitParam, String(params.limit));
-  applyExtraParams(url, params);
-
-  const body = await fetchJson(url.toString(), config.timeout);
-  return { items: extractItems(body, config), total: extractTotal(body, config) };
-}
-
-async function fetchPageBased(config: CollectionConfig, params: FetchParams): Promise<UpstreamPage> {
-  const pagination = config.upstream.pagination as { pageParam: string; pageSizeParam: string };
-  const page = Math.floor(params.offset / params.limit) + 1;
-
-  const url = new URL(config.upstream.baseUrl);
-  url.searchParams.set(pagination.pageParam, String(page));
-  url.searchParams.set(pagination.pageSizeParam, String(params.limit));
-  applyExtraParams(url, params);
-
-  const body = await fetchJson(url.toString(), config.timeout);
-  return { items: extractItems(body, config), total: extractTotal(body, config) };
-}
-
-async function fetchCursorBased(config: CollectionConfig, params: FetchParams): Promise<UpstreamPage> {
-  const pagination = config.upstream.pagination as {
-    cursorParam: string;
-    limitParam: string;
-    nextCursorField: string;
-  };
-
-  let cursor: string | undefined;
-  const collected: Record<string, unknown>[] = [];
-
-  while (collected.length < params.offset + params.limit) {
-    const url = new URL(config.upstream.baseUrl);
-    url.searchParams.set(pagination.limitParam, String(params.limit));
-    if (cursor) {
-      url.searchParams.set(pagination.cursorParam, cursor);
-    }
-    applyExtraParams(url, params);
-
-    const body = await fetchJson(url.toString(), config.timeout);
-    const items = extractItems(body, config);
-    collected.push(...items);
-
-    const nextCursor = getByPath(body, pagination.nextCursorField) as string | null;
-    if (!nextCursor || items.length === 0) break;
-    cursor = nextCursor;
-  }
-
-  return {
-    items: collected.slice(params.offset, params.offset + params.limit),
-    total: undefined,
-  };
-}
-
-async function fetchWfsUpstream(config: CollectionConfig, params: FetchParams): Promise<UpstreamPage> {
-  const log = logger.adapter();
-  const url = buildWfsGetFeatureUrl(config.upstream.baseUrl, config.upstream.typeName!, {
-    startIndex: params.offset,
-    count: params.limit,
-    version: config.upstream.version ?? '1.1.0',
-    bbox: params.bbox,
-  });
-
-  const start = Date.now();
-  const timeoutMs = config.timeout ?? DEFAULT_TIMEOUT_MS;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const response = await fetch(url, { signal: controller.signal });
-    const durationMs = Date.now() - start;
-    log.info(
-      { url: redactUrl(url), status: response.status, durationMs },
-      `upstream WFS ${response.status} in ${durationMs}ms`,
-    );
-    if (!response.ok) {
-      throw new UpstreamError(response.status);
-    }
-    const body = (await response.json()) as Record<string, unknown>;
-    const features = (body.features ?? []) as Record<string, unknown>[];
-    const total = body.totalFeatures as number | undefined;
-
-    return { items: features, total };
-  } catch (err) {
-    if (err instanceof UpstreamError) throw err;
-    const durationMs = Date.now() - start;
-    if (err instanceof DOMException && err.name === 'AbortError') {
-      log.error({ url, durationMs, timeoutMs }, 'upstream WFS timeout');
-      throw new UpstreamTimeoutError(url, timeoutMs);
-    }
-    log.error({ url, durationMs, err }, 'upstream WFS fetch failed');
-    throw err;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-export async function fetchUpstreamItems(
+async function executeWithMiddleware<T>(
   collectionId: string,
   config: CollectionConfig,
-  params: FetchParams,
-  redis?: Redis | null,
-  keyPrefix?: string,
-  cache?: CacheService | null,
-): Promise<UpstreamPage> {
-  // Check cache first
-  if (cache && config.cache?.ttlSeconds) {
-    const cacheParams = {
-      offset: params.offset,
-      limit: params.limit,
-      bbox: params.bbox,
-      upstreamParams: params.upstreamParams,
-    };
-    const cached = await cache.get(collectionId, cacheParams);
-    if (cached) return cached as UpstreamPage;
+  cacheKey: Record<string, unknown>,
+  doFetch: () => Promise<T>,
+  deps: AdapterDeps,
+): Promise<T> {
+  // 1. Cache check
+  if (deps.cache && config.cache?.ttlSeconds) {
+    const cached = await deps.cache.get(collectionId, cacheKey);
+    if (cached) return cached as T;
   }
 
+  // 2. Rate limit
   const bucket = getUpstreamBucket(
     collectionId,
     config.rateLimit?.capacity,
     config.rateLimit?.refillRate,
-    redis,
-    keyPrefix,
+    deps.redis,
+    deps.keyPrefix,
   );
   const allowed = bucket instanceof TokenBucket ? bucket.tryConsume() : await bucket.tryConsume();
   if (!allowed) {
@@ -254,7 +56,7 @@ export async function fetchUpstreamItems(
     throw new UpstreamError(429);
   }
 
-  // Check circuit breaker
+  // 3. Circuit breaker
   const breaker = getCircuitBreaker(collectionId, config.circuitBreaker);
   if (breaker && !breaker.canExecute()) {
     const log = logger.adapter();
@@ -266,25 +68,9 @@ export async function fetchUpstreamItems(
     throw new UpstreamError(503);
   }
 
-  let result: UpstreamPage;
-
-  const doFetch = async (): Promise<UpstreamPage> => {
-    if (config.upstream.type === 'wfs') {
-      return fetchWfsUpstream(config, params);
-    }
-    switch (config.upstream.pagination.type) {
-      case 'offset-limit':
-        return fetchOffsetLimit(config, params);
-      case 'page-pageSize':
-        return fetchPageBased(config, params);
-      case 'cursor':
-        return fetchCursorBased(config, params);
-      default:
-        throw new Error(`Unknown pagination type: ${(config.upstream.pagination as any).type}`);
-    }
-  };
-
+  // 4. Execute with retry + metrics
   const fetchStart = process.hrtime.bigint();
+  let result: T;
   try {
     if (config.retry) {
       safeMetric(() => retryAttemptsTotal.inc({ collection: collectionId }));
@@ -313,102 +99,39 @@ export async function fetchUpstreamItems(
   const durationS = Number(process.hrtime.bigint() - fetchStart) / 1e9;
   safeMetric(() => upstreamRequestDuration.observe({ collection: collectionId, status_code: '200' }, durationS));
 
-  // Store in cache after successful fetch
-  if (cache && config.cache?.ttlSeconds) {
-    const cacheParams = {
-      offset: params.offset,
-      limit: params.limit,
-      bbox: params.bbox,
-      upstreamParams: params.upstreamParams,
-    };
-    await cache.set(collectionId, cacheParams, result, config.cache.ttlSeconds);
+  // 5. Cache store
+  if (deps.cache && config.cache?.ttlSeconds) {
+    await deps.cache.set(collectionId, cacheKey, result, config.cache.ttlSeconds);
   }
 
   return result;
+}
+
+export async function fetchUpstreamItems(
+  collectionId: string,
+  config: CollectionConfig,
+  params: FetchParams,
+  deps: AdapterDeps = {},
+): Promise<UpstreamPage> {
+  const cacheKey = {
+    offset: params.offset,
+    limit: params.limit,
+    bbox: params.bbox,
+    upstreamParams: params.upstreamParams,
+  };
+  const doFetch = () => fetchWithStrategy(config, params, fetchJson);
+  return executeWithMiddleware(collectionId, config, cacheKey, doFetch, deps);
 }
 
 export async function fetchUpstreamItem(
   collectionId: string,
   config: CollectionConfig,
   itemId: string,
-  redis?: Redis | null,
-  keyPrefix?: string,
-  cache?: CacheService | null,
+  deps: AdapterDeps = {},
 ): Promise<Record<string, unknown>> {
-  // Check cache first
-  if (cache && config.cache?.ttlSeconds) {
-    const cached = await cache.get(collectionId, { itemId });
-    if (cached) return cached as Record<string, unknown>;
-  }
-
-  const bucket = getUpstreamBucket(
-    collectionId,
-    config.rateLimit?.capacity,
-    config.rateLimit?.refillRate,
-    redis,
-    keyPrefix,
-  );
-  const allowed = bucket instanceof TokenBucket ? bucket.tryConsume() : await bucket.tryConsume();
-  if (!allowed) {
-    const log = logger.adapter();
-    log.warning({ collectionId }, 'upstream rate limit exceeded');
-    safeMetric(() => rateLimitRejectionsTotal.inc({ collection: collectionId, limiter: 'upstream' }));
-    throw new UpstreamError(429);
-  }
-
-  // Check circuit breaker
-  const breaker = getCircuitBreaker(collectionId, config.circuitBreaker);
-  if (breaker && !breaker.canExecute()) {
-    const log = logger.adapter();
-    log.warning({ collectionId }, 'circuit breaker is open, rejecting request');
-    safeMetric(() => {
-      const stateValue = breaker.state === CircuitState.Open ? 1 : breaker.state === CircuitState.HalfOpen ? 2 : 0;
-      circuitBreakerState.set({ collection: collectionId }, stateValue);
-    });
-    throw new UpstreamError(503);
-  }
-
-  const url = `${config.upstream.baseUrl}/${itemId}`;
-  let result: Record<string, unknown>;
-
-  const doFetch = async (): Promise<Record<string, unknown>> => {
-    const body = await fetchJson(url, config.timeout);
+  const doFetch = async () => {
+    const body = await fetchJson(`${config.upstream.baseUrl}/${itemId}`, config.timeout);
     return getByPath(body, config.upstream.responseMapping.item) as Record<string, unknown>;
   };
-
-  const fetchStart = process.hrtime.bigint();
-  try {
-    if (config.retry) {
-      safeMetric(() => retryAttemptsTotal.inc({ collection: collectionId }));
-      result = await withRetry(doFetch, config.retry);
-    } else {
-      result = await doFetch();
-    }
-  } catch (err) {
-    if (breaker) breaker.recordFailure();
-    const durationS = Number(process.hrtime.bigint() - fetchStart) / 1e9;
-    safeMetric(() => {
-      if (err instanceof UpstreamError) {
-        upstreamRequestDuration.observe({ collection: collectionId, status_code: String(err.statusCode) }, durationS);
-        upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'http_error' });
-      } else if (err instanceof UpstreamTimeoutError) {
-        upstreamRequestDuration.observe({ collection: collectionId, status_code: 'timeout' }, durationS);
-        upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'timeout' });
-      } else {
-        upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'network' });
-      }
-    });
-    throw err;
-  }
-
-  if (breaker) breaker.recordSuccess();
-  const itemDurationS = Number(process.hrtime.bigint() - fetchStart) / 1e9;
-  safeMetric(() => upstreamRequestDuration.observe({ collection: collectionId, status_code: '200' }, itemDurationS));
-
-  // Store in cache after successful fetch
-  if (cache && config.cache?.ttlSeconds) {
-    await cache.set(collectionId, { itemId }, result, config.cache.ttlSeconds);
-  }
-
-  return result;
+  return executeWithMiddleware(collectionId, config, { itemId }, doFetch, deps);
 }
