@@ -11,6 +11,7 @@ import { createJwtMiddleware } from './auth/jwt.js';
 import { initLogging, logger, createCorrelationIdMiddleware } from './logger.js';
 import { createRedisClient, getRedisStatus, getKeyPrefix } from './redis.js';
 import { CacheService } from './engine/cache.js';
+import { HealthChecker } from './engine/health-check.js';
 import { httpMiddleware, metricsHandler, rateLimitRejectionsTotal, safeMetric } from './metrics.js';
 
 export async function createApp() {
@@ -32,10 +33,17 @@ export async function createApp() {
 
   const cache = new CacheService(redis, getKeyPrefix());
 
+  const healthChecker = new HealthChecker();
+  const healthCheckInterval = parseInt(process.env.HEALTH_CHECK_INTERVAL_MS || '30000');
+  if (healthCheckInterval > 0) {
+    healthChecker.startPeriodic(getRegistry().collections, healthCheckInterval);
+  }
+
   const app = express();
   app.set('redis', redis);
   app.set('redisKeyPrefix', getKeyPrefix());
   app.set('cache', cache);
+  app.set('healthChecker', healthChecker);
   app.use(helmet());
   app.use(httpMiddleware);
   const corsOrigin = process.env.CORS_ORIGIN;
@@ -84,18 +92,24 @@ export async function createApp() {
   app.use('/ogc', createOgcRouter(jwtMiddleware));
   app.use('/wfs', createWfsRouter(jwtMiddleware));
   app.use('/admin', createAdminRouter(jwtMiddleware, cache));
-  app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+  app.get('/health', (_req, res) => {
+    const statuses = healthChecker.getAllStatuses();
+    res.json({ status: 'ok', upstreams: statuses });
+  });
   app.get('/metrics', metricsHandler);
   app.get('/ready', (_req, res) => {
     try {
       const reg = getRegistry();
       const hasCollections = Object.keys(reg.collections).length > 0;
       const redisStatus = getRedisStatus(redis);
+      const upstreams = healthChecker.getAllStatuses();
+      const hasUnhealthy = Object.values(upstreams).some((s) => s === 'unhealthy');
       if (hasCollections) {
         return res.json({
-          status: 'ready',
+          status: hasUnhealthy ? 'degraded' : 'ready',
           collections: Object.keys(reg.collections).length,
           redis: redisStatus,
+          upstreams,
         });
       }
       return res.status(503).json({ status: 'not ready', reason: 'no collections loaded' });
