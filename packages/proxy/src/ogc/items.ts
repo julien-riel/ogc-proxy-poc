@@ -14,6 +14,7 @@ import { parseSortby, validateSortable, buildUpstreamSort } from '../engine/sort
 import { getBaseUrl } from '../utils/base-url.js';
 import type { CacheService } from '../engine/cache.js';
 import { logger } from '../logger.js';
+import { collectionRequestsTotal, featuresReturned, safeMetric } from '../metrics.js';
 
 export function parseBbox(bboxStr: string): [number, number, number, number] | undefined {
   const parts = bboxStr.split(',').map(Number);
@@ -272,6 +273,8 @@ export async function getItems(req: Request, res: Response) {
     return res.status(404).json({ code: 'NotFound', description: `Collection '${collectionId}' not found` });
   }
 
+  safeMetric(() => collectionRequestsTotal.inc({ collection: collectionId, protocol: 'ogc', operation: 'getItems' }));
+
   const parsed = parseItemsRequest(req, config);
   if (isParseError(parsed)) {
     return res.status(parsed.error.status).json(parsed.error.body);
@@ -372,6 +375,7 @@ export async function getItems(req: Request, res: Response) {
       res.set('OGC-maxPageSize', String(limits.maxPageSize));
     }
     res.set('Content-Type', 'application/geo+json');
+    safeMetric(() => featuresReturned.observe({ collection: collectionId }, fc.features.length));
     res.json(fc);
   } catch (err) {
     if (err instanceof UpstreamError && err.statusCode === 429) {
@@ -396,6 +400,8 @@ export async function getItem(req: Request, res: Response) {
   if (!config) {
     return res.status(404).json({ code: 'NotFound', description: `Collection '${collectionId}' not found` });
   }
+
+  safeMetric(() => collectionRequestsTotal.inc({ collection: collectionId, protocol: 'ogc', operation: 'getItem' }));
 
   try {
     const plugin = await getCollectionPlugin(collectionId);

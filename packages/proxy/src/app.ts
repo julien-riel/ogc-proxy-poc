@@ -11,6 +11,7 @@ import { createJwtMiddleware } from './auth/jwt.js';
 import { initLogging, logger, createCorrelationIdMiddleware } from './logger.js';
 import { createRedisClient, getRedisStatus, getKeyPrefix } from './redis.js';
 import { CacheService } from './engine/cache.js';
+import { httpMiddleware, metricsHandler, rateLimitRejectionsTotal, safeMetric } from './metrics.js';
 
 export async function createApp() {
   initLogging();
@@ -36,6 +37,7 @@ export async function createApp() {
   app.set('redisKeyPrefix', getKeyPrefix());
   app.set('cache', cache);
   app.use(helmet());
+  app.use(httpMiddleware);
   const corsOrigin = process.env.CORS_ORIGIN;
   app.use(cors(corsOrigin ? { origin: corsOrigin.split(',') } : undefined));
   app.use(express.json({ limit: '100kb' }));
@@ -46,6 +48,10 @@ export async function createApp() {
     standardHeaders: true,
     legacyHeaders: false,
     message: { code: 'TooManyRequests', description: 'Rate limit exceeded' },
+    handler: (_req, res) => {
+      safeMetric(() => rateLimitRejectionsTotal.inc({ collection: 'global', limiter: 'client' }));
+      res.status(429).json({ code: 'TooManyRequests', description: 'Rate limit exceeded' });
+    },
     ...(redis
       ? {
           store: new RedisStore({
@@ -79,6 +85,7 @@ export async function createApp() {
   app.use('/wfs', createWfsRouter(jwtMiddleware));
   app.use('/admin', createAdminRouter(jwtMiddleware, cache));
   app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+  app.get('/metrics', metricsHandler);
   app.get('/ready', (_req, res) => {
     try {
       const reg = getRegistry();
