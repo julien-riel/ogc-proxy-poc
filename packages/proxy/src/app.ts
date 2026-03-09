@@ -11,7 +11,7 @@ import { createJwtMiddleware } from './auth/jwt.js';
 import { initLogging, logger, createCorrelationIdMiddleware } from './logger.js';
 import { createRedisClient, getRedisStatus, getKeyPrefix } from './redis.js';
 import { CacheService } from './engine/cache.js';
-import { httpMiddleware, metricsHandler, rateLimitRejectionsTotal } from './metrics.js';
+import { httpMiddleware, metricsHandler, rateLimitRejectionsTotal, safeMetric } from './metrics.js';
 
 export async function createApp() {
   initLogging();
@@ -49,7 +49,7 @@ export async function createApp() {
     legacyHeaders: false,
     message: { code: 'TooManyRequests', description: 'Rate limit exceeded' },
     handler: (_req, res) => {
-      rateLimitRejectionsTotal.inc({ collection: 'global', limiter: 'client' });
+      safeMetric(() => rateLimitRejectionsTotal.inc({ collection: 'global', limiter: 'client' }));
       res.status(429).json({ code: 'TooManyRequests', description: 'Rate limit exceeded' });
     },
     ...(redis

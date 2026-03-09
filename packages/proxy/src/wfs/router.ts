@@ -7,7 +7,7 @@ import { parseGetFeatureGet, parseGetFeaturePost, executeGetFeature } from './ge
 import type { CacheService } from '../engine/cache.js';
 import { logger } from '../logger.js';
 import { UpstreamError, UpstreamTimeoutError } from '../engine/adapter.js';
-import { collectionRequestsTotal, featuresReturned } from '../metrics.js';
+import { collectionRequestsTotal, featuresReturned, safeMetric } from '../metrics.js';
 
 function normalizeQuery(query: Record<string, unknown>): Record<string, string> {
   const normalized: Record<string, string> = {};
@@ -28,7 +28,9 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
 
     // GetCapabilities is a discovery operation — no auth required
     if (request === 'getcapabilities') {
-      collectionRequestsTotal.inc({ collection: '_discovery', protocol: 'wfs', operation: 'GetCapabilities' });
+      safeMetric(() =>
+        collectionRequestsTotal.inc({ collection: '_discovery', protocol: 'wfs', operation: 'GetCapabilities' }),
+      );
       res.set('Content-Type', 'application/xml');
       const version = query.version || '1.1.0';
       if (version.startsWith('2.')) {
@@ -42,7 +44,9 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
       switch (request) {
         case 'describefeaturetype': {
           const typeName = query.typename || query.typenames || '';
-          collectionRequestsTotal.inc({ collection: typeName, protocol: 'wfs', operation: 'DescribeFeatureType' });
+          safeMetric(() =>
+            collectionRequestsTotal.inc({ collection: typeName, protocol: 'wfs', operation: 'DescribeFeatureType' }),
+          );
           const result = buildDescribeFeatureType(typeName);
           if (!result) return res.status(404).json({ code: 'NotFound', description: 'Requested type not found' });
           return res.json(result);
@@ -51,13 +55,15 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
         case 'getfeature': {
           try {
             const params = parseGetFeatureGet(query);
-            collectionRequestsTotal.inc({ collection: params.typeName, protocol: 'wfs', operation: 'GetFeature' });
+            safeMetric(() =>
+              collectionRequestsTotal.inc({ collection: params.typeName, protocol: 'wfs', operation: 'GetFeature' }),
+            );
             const redis = req.app.get('redis') as Redis | null;
             const keyPrefix = req.app.get('redisKeyPrefix') as string | undefined;
             const cache = req.app.get('cache') as CacheService | null;
             const result = await executeGetFeature(params, redis, keyPrefix, cache);
-            if (result) featuresReturned.observe({ collection: params.typeName }, result.numberReturned);
             if (!result) return res.status(404).json({ code: 'NotFound', description: 'Requested type not found' });
+            safeMetric(() => featuresReturned.observe({ collection: params.typeName }, result.numberReturned));
             return res.json(result);
           } catch (err) {
             if (err instanceof UpstreamError && err.statusCode === 429) {
@@ -90,13 +96,15 @@ export function createWfsRouter(jwtMiddleware: RequestHandler): Router {
 
     try {
       const params = parseGetFeaturePost(body);
-      collectionRequestsTotal.inc({ collection: params.typeName, protocol: 'wfs', operation: 'GetFeature' });
+      safeMetric(() =>
+        collectionRequestsTotal.inc({ collection: params.typeName, protocol: 'wfs', operation: 'GetFeature' }),
+      );
       const redis = req.app.get('redis') as Redis | null;
       const keyPrefix = req.app.get('redisKeyPrefix') as string | undefined;
       const cache = req.app.get('cache') as CacheService | null;
       const result = await executeGetFeature(params, redis, keyPrefix, cache);
-      if (result) featuresReturned.observe({ collection: params.typeName }, result.numberReturned);
       if (!result) return res.status(404).json({ code: 'NotFound', description: 'Requested type not found' });
+      safeMetric(() => featuresReturned.observe({ collection: params.typeName }, result.numberReturned));
       return res.json(result);
     } catch (err) {
       if (err instanceof UpstreamError && err.statusCode === 429) {

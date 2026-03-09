@@ -5,7 +5,7 @@ import { getByPath } from './geojson-builder.js';
 import { buildWfsGetFeatureUrl } from '../plugins/wfs-upstream.js';
 import { getUpstreamBucket, TokenBucket } from './upstream-rate-limit.js';
 import { logger } from '../logger.js';
-import { upstreamRequestDuration, upstreamErrorsTotal, rateLimitRejectionsTotal } from '../metrics.js';
+import { upstreamRequestDuration, upstreamErrorsTotal, rateLimitRejectionsTotal, safeMetric } from '../metrics.js';
 
 export interface FetchParams {
   offset: number;
@@ -241,7 +241,7 @@ export async function fetchUpstreamItems(
   if (!allowed) {
     const log = logger.adapter();
     log.warning({ collectionId }, 'upstream rate limit exceeded');
-    rateLimitRejectionsTotal.inc({ collection: collectionId, limiter: 'upstream' });
+    safeMetric(() => rateLimitRejectionsTotal.inc({ collection: collectionId, limiter: 'upstream' }));
     throw new UpstreamError(429);
   }
 
@@ -268,19 +268,21 @@ export async function fetchUpstreamItems(
     }
   } catch (err) {
     const durationS = Number(process.hrtime.bigint() - fetchStart) / 1e9;
-    if (err instanceof UpstreamError) {
-      upstreamRequestDuration.observe({ collection: collectionId, status_code: String(err.statusCode) }, durationS);
-      upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'http_error' });
-    } else if (err instanceof UpstreamTimeoutError) {
-      upstreamRequestDuration.observe({ collection: collectionId, status_code: 'timeout' }, durationS);
-      upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'timeout' });
-    } else {
-      upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'network' });
-    }
+    safeMetric(() => {
+      if (err instanceof UpstreamError) {
+        upstreamRequestDuration.observe({ collection: collectionId, status_code: String(err.statusCode) }, durationS);
+        upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'http_error' });
+      } else if (err instanceof UpstreamTimeoutError) {
+        upstreamRequestDuration.observe({ collection: collectionId, status_code: 'timeout' }, durationS);
+        upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'timeout' });
+      } else {
+        upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'network' });
+      }
+    });
     throw err;
   }
   const durationS = Number(process.hrtime.bigint() - fetchStart) / 1e9;
-  upstreamRequestDuration.observe({ collection: collectionId, status_code: '200' }, durationS);
+  safeMetric(() => upstreamRequestDuration.observe({ collection: collectionId, status_code: '200' }, durationS));
 
   // Store in cache after successful fetch
   if (cache && config.cache?.ttlSeconds) {
@@ -321,7 +323,7 @@ export async function fetchUpstreamItem(
   if (!allowed) {
     const log = logger.adapter();
     log.warning({ collectionId }, 'upstream rate limit exceeded');
-    rateLimitRejectionsTotal.inc({ collection: collectionId, limiter: 'upstream' });
+    safeMetric(() => rateLimitRejectionsTotal.inc({ collection: collectionId, limiter: 'upstream' }));
     throw new UpstreamError(429);
   }
 
@@ -334,19 +336,21 @@ export async function fetchUpstreamItem(
     result = getByPath(body, config.upstream.responseMapping.item) as Record<string, unknown>;
   } catch (err) {
     const durationS = Number(process.hrtime.bigint() - fetchStart) / 1e9;
-    if (err instanceof UpstreamError) {
-      upstreamRequestDuration.observe({ collection: collectionId, status_code: String(err.statusCode) }, durationS);
-      upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'http_error' });
-    } else if (err instanceof UpstreamTimeoutError) {
-      upstreamRequestDuration.observe({ collection: collectionId, status_code: 'timeout' }, durationS);
-      upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'timeout' });
-    } else {
-      upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'network' });
-    }
+    safeMetric(() => {
+      if (err instanceof UpstreamError) {
+        upstreamRequestDuration.observe({ collection: collectionId, status_code: String(err.statusCode) }, durationS);
+        upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'http_error' });
+      } else if (err instanceof UpstreamTimeoutError) {
+        upstreamRequestDuration.observe({ collection: collectionId, status_code: 'timeout' }, durationS);
+        upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'timeout' });
+      } else {
+        upstreamErrorsTotal.inc({ collection: collectionId, error_type: 'network' });
+      }
+    });
     throw err;
   }
   const itemDurationS = Number(process.hrtime.bigint() - fetchStart) / 1e9;
-  upstreamRequestDuration.observe({ collection: collectionId, status_code: '200' }, itemDurationS);
+  safeMetric(() => upstreamRequestDuration.observe({ collection: collectionId, status_code: '200' }, itemDurationS));
 
   // Store in cache after successful fetch
   if (cache && config.cache?.ttlSeconds) {

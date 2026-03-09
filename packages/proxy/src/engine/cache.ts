@@ -1,7 +1,7 @@
 import { createHash } from 'crypto';
 import type { Redis } from 'ioredis';
 import { logger } from '../logger.js';
-import { cacheOperationsTotal } from '../metrics.js';
+import { cacheOperationsTotal, safeMetric } from '../metrics.js';
 
 export interface CacheParams {
   offset?: number;
@@ -28,12 +28,12 @@ export class CacheService {
       const key = this.buildKey(collectionId, params);
       const cached = await this.redis.get(key);
       if (cached) {
-        cacheOperationsTotal.inc({ collection: collectionId, result: 'hit' });
+        safeMetric(() => cacheOperationsTotal.inc({ collection: collectionId, result: 'hit' }));
         const log = logger.adapter();
         log.info({ collectionId, key }, 'cache hit');
         return JSON.parse(cached);
       }
-      cacheOperationsTotal.inc({ collection: collectionId, result: 'miss' });
+      safeMetric(() => cacheOperationsTotal.inc({ collection: collectionId, result: 'miss' }));
       return null;
     } catch {
       const log = logger.adapter();

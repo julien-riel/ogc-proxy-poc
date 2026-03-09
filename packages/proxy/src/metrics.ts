@@ -1,5 +1,6 @@
 import { collectDefaultMetrics, Counter, Histogram, register } from 'prom-client';
 import type { Request, Response, NextFunction } from 'express';
+import { logger } from './logger.js';
 
 collectDefaultMetrics();
 
@@ -55,8 +56,22 @@ export const featuresReturned = new Histogram({
   name: 'ogc_proxy_features_returned',
   help: 'Number of features returned per request',
   labelNames: ['collection'] as const,
-  buckets: [0, 1, 10, 50, 100, 500, 1000, 5000],
+  buckets: [1, 10, 50, 100, 500, 1000, 5000],
 });
+
+// --- Safe metric helpers ---
+
+/**
+ * Safely record a metric operation. Metrics must never affect the primary request path.
+ */
+export function safeMetric(fn: () => void): void {
+  try {
+    fn();
+  } catch (err) {
+    const log = logger.app();
+    log.warning({ err }, 'metric recording failed');
+  }
+}
 
 // --- Middleware & handler ---
 
@@ -64,30 +79,38 @@ function normalizeRoute(req: Request): string {
   if (req.route?.path) {
     return req.baseUrl + req.route.path;
   }
-  return req.path;
+  return 'unmatched';
 }
 
 export function httpMiddleware(req: Request, res: Response, next: NextFunction): void {
   const start = process.hrtime.bigint();
 
   res.on('finish', () => {
-    const durationNs = Number(process.hrtime.bigint() - start);
-    const durationSeconds = durationNs / 1e9;
-    const route = normalizeRoute(req);
-    const labels = {
-      method: req.method,
-      route,
-      status_code: String(res.statusCode),
-    };
+    try {
+      const durationNs = Number(process.hrtime.bigint() - start);
+      const durationSeconds = durationNs / 1e9;
+      const route = normalizeRoute(req);
+      const labels = {
+        method: req.method,
+        route,
+        status_code: String(res.statusCode),
+      };
 
-    httpRequestDuration.observe(labels, durationSeconds);
-    httpRequestsTotal.inc(labels);
+      httpRequestDuration.observe(labels, durationSeconds);
+      httpRequestsTotal.inc(labels);
+    } catch {
+      // Metrics must never crash the process
+    }
   });
 
   next();
 }
 
 export async function metricsHandler(_req: Request, res: Response): Promise<void> {
-  res.set('Content-Type', register.contentType);
-  res.end(await register.metrics());
+  try {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  } catch {
+    res.status(500).end('Error collecting metrics');
+  }
 }
