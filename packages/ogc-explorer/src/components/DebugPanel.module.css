@@ -1,0 +1,119 @@
+.panel {
+  border-top: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  max-height: 40%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: #aaa;
+}
+
+.header:hover {
+  color: #eee;
+}
+
+.toggle {
+  font-size: 10px;
+  transition: transform 0.2s;
+}
+
+.toggleOpen {
+  transform: rotate(90deg);
+}
+
+.content {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-family: monospace;
+  border-bottom: 1px solid #1a1a2e;
+  cursor: pointer;
+}
+
+.entry:hover {
+  background: #1a1a2e;
+}
+
+.method {
+  color: #4363d8;
+  font-weight: 600;
+  width: 36px;
+}
+
+.url {
+  flex: 1;
+  color: #ccc;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status {
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.statusOk {
+  background: #1a4d1a;
+  color: #3cb44b;
+}
+
+.statusError {
+  background: #4d1a1a;
+  color: #e6194b;
+}
+
+.duration {
+  color: #888;
+  font-size: 11px;
+  width: 50px;
+  text-align: right;
+}
+
+.copyButton {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+}
+
+.copyButton:hover {
+  color: #eee;
+}
+
+.jsonViewer {
+  padding: 8px 12px;
+  background: #0d1117;
+  border-bottom: 1px solid #333;
+  max-height: 200px;
+  overflow: auto;
+}
+
+.jsonPre {
+  margin: 0;
+  font-size: 11px;
+  font-family: monospace;
+  color: #aaa;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
