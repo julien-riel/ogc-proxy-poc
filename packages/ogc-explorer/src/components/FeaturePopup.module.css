@@ -1,0 +1,37 @@
+.popup {
+  max-height: 300px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+.featureId {
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #333;
+  font-size: 14px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 3px 8px;
+  border-bottom: 1px solid #eee;
+  font-size: 12px;
+}
+
+.table th {
+  color: #666;
+  font-weight: 600;
+  white-space: nowrap;
+  width: 1%;
+}
+
+.table td {
+  color: #333;
+  word-break: break-all;
+}
