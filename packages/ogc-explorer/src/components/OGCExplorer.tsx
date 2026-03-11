@@ -30,7 +30,7 @@ export function OGCExplorer({
   const { entries, addEntry, clear } = useRequestLog();
   const ogc = useOGCClient({ onRequest: addEntry });
   const [loadedCollections, setLoadedCollections] = useState<Map<string, LoadedCollection>>(new Map());
-  const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
+  const [_selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
   const [colorIndex, setColorIndex] = useState(0);
 
   const handleConnect = useCallback(
