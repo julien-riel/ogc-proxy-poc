@@ -2,9 +2,11 @@
   "name": "ogc-proxy-municipal",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "scripts": {
+    "dev:explorer": "npm run dev -w apps/explorer-demo",
     "dev:mock": "npm run dev -w packages/mock-api",
     "dev:proxy": "npm run dev -w packages/proxy",
     "dev": "npm run dev:mock & npm run dev:proxy",
