@@ -15,7 +15,7 @@ export default defineConfig({
       fileName: 'index',
     },
     rollupOptions: {
-      external: ['react', 'react-dom', 'react/jsx-runtime', 'maplibre-gl'],
+      external: ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'maplibre-gl'],
     },
     cssCodeSplit: false,
   },

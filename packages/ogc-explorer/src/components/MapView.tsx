@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
+import { createRoot, type Root } from 'react-dom/client';
 import type { Feature } from 'geojson';
 import type { LoadedCollection } from '../types/ogc.js';
+import { FeaturePopup } from './FeaturePopup.js';
 import styles from './MapView.module.css';
 
 export interface MapViewProps {
@@ -16,6 +18,8 @@ const DEFAULT_STYLE = 'https://demotiles.maplibre.org/style.json';
 export function MapView({ loadedCollections, mapStyle, onFeatureClick }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const popupRef = useRef<maplibregl.Popup | null>(null);
+  const popupRootRef = useRef<Root | null>(null);
 
   // Initialize map
   useEffect(() => {
@@ -91,10 +95,10 @@ export function MapView({ loadedCollections, mapStyle, onFeatureClick }: MapView
     }
   }, [loadedCollections]);
 
-  // Handle feature click
+  // Handle feature click — show popup with FeaturePopup content
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !onFeatureClick) return;
+    if (!map) return;
 
     const handleClick = (e: maplibregl.MapMouseEvent) => {
       const layerIds = (map.getStyle()?.layers ?? [])
@@ -104,17 +108,34 @@ export function MapView({ loadedCollections, mapStyle, onFeatureClick }: MapView
       if (layerIds.length === 0) return;
 
       const features = map.queryRenderedFeatures(e.point, { layers: layerIds });
-      if (features.length > 0) {
-        const feature = features[0];
-        // Extract collectionId from layer metadata set in addLayersForCollection
-        const collectionId = (feature.layer.metadata as Record<string, string>)?.collectionId ?? '';
-        onFeatureClick(feature as unknown as Feature, collectionId);
-      }
+      if (features.length === 0) return;
+
+      const feature = features[0];
+      const collectionId = (feature.layer.metadata as Record<string, string>)?.collectionId ?? '';
+
+      // Clean up existing popup
+      popupRootRef.current?.unmount();
+      popupRef.current?.remove();
+
+      // Create popup container and render FeaturePopup into it
+      const container = document.createElement('div');
+      const root = createRoot(container);
+      root.render(<FeaturePopup feature={feature as unknown as Feature} />);
+      popupRootRef.current = root;
+
+      popupRef.current = new maplibregl.Popup({ maxWidth: '360px' })
+        .setLngLat(e.lngLat)
+        .setDOMContent(container)
+        .addTo(map);
+
+      onFeatureClick?.(feature as unknown as Feature, collectionId);
     };
 
     map.on('click', handleClick);
     return () => {
       map.off('click', handleClick);
+      popupRootRef.current?.unmount();
+      popupRef.current?.remove();
     };
   }, [onFeatureClick]);
 
