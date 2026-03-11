@@ -20,6 +20,7 @@ export function MapView({ loadedCollections, mapStyle, onFeatureClick }: MapView
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const popupRootRef = useRef<Root | null>(null);
+  const prevCollectionIdsRef = useRef<Set<string>>(new Set());
 
   // Initialize map
   useEffect(() => {
@@ -92,6 +93,33 @@ export function MapView({ loadedCollections, mapStyle, onFeatureClick }: MapView
       return () => {
         map.off('load', syncLayers);
       };
+    }
+  }, [loadedCollections]);
+
+  // Fit bounds when a new collection is loaded
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+
+    const currentIds = new Set(loadedCollections.keys());
+    const newIds = [...currentIds].filter((id) => !prevCollectionIdsRef.current.has(id));
+    prevCollectionIdsRef.current = currentIds;
+
+    if (newIds.length === 0) return;
+
+    const newId = newIds[0];
+    const loaded = loadedCollections.get(newId);
+    if (!loaded) return;
+
+    const bbox = loaded.metadata.extent?.spatial?.bbox?.[0];
+    if (bbox && bbox.length >= 4) {
+      map.fitBounds(
+        [
+          [bbox[0], bbox[1]],
+          [bbox[2], bbox[3]],
+        ],
+        { padding: 50, maxZoom: 15 },
+      );
     }
   }, [loadedCollections]);
 
