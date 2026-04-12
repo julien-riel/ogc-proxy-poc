@@ -31,12 +31,12 @@
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.5.2",
     "jsdom": "^26.1.0",
-    "maplibre-gl": "^5.4.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "maplibre-gl": "^5.22.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
     "typescript": "^5.7.0",
     "vite": "^6.3.5",
     "vite-plugin-dts": "^4.5.4",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.4"
   }
 }
