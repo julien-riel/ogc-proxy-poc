@@ -10,9 +10,9 @@
   },
   "dependencies": {
     "@ogc-proxy/ogc-explorer": "*",
-    "maplibre-gl": "^5.4.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "maplibre-gl": "^5.24.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
   },
   "devDependencies": {
     "@types/react": "^19.1.0",
